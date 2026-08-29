@@ -46,6 +46,7 @@ import { chmodSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
+import { readFileSync, writeFileSync } from "node:fs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -352,9 +353,19 @@ function createLoadingWindow() {
 }
 
 function createMainWindow() {
+  const stateFile = join(app.getPath("userData"), "window-state.json");
+  let windowState = { width: 1000, height: 750 };
+  try {
+    if (existsSync(stateFile)) {
+      windowState = JSON.parse(readFileSync(stateFile, "utf-8"));
+    }
+  } catch (e) {}
+
   mainWin = new BrowserWindow({
-    width: 1440,
-    height: 900,
+    width: windowState.width || 1000,
+    height: windowState.height || 750,
+    x: windowState.x,
+    y: windowState.y,
     minWidth: 800,
     minHeight: 600,
     show: false,
@@ -375,8 +386,17 @@ function createMainWindow() {
     loadingWin?.destroy();
     loadingWin = null;
     mainWin?.show();
-    mainWin?.maximize();
   });
+
+  const saveState = () => {
+    if (!mainWin || mainWin.isDestroyed()) return;
+    try {
+      const bounds = mainWin.getBounds();
+      writeFileSync(stateFile, JSON.stringify(bounds));
+    } catch (e) {}
+  };
+  mainWin.on("resize", saveState);
+  mainWin.on("move", saveState);
 
   // Route window.open() calls appropriately.
   mainWin.webContents.setWindowOpenHandler(({ url }) => {
@@ -626,7 +646,7 @@ async function startStack() {
   //     the user sees progress instead of an indefinite spinner.
   const result = await main({
     bannerTitle: "OpenHands Agent Canvas",
-    staticMode: true,
+    staticMode: process.env.DEV_DESKTOP !== "true",
     staticDir: buildDir,
     mode: "agent-canvas",
     isPublic: false,

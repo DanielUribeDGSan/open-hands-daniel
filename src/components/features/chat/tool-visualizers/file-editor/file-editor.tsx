@@ -22,10 +22,13 @@ import type {
   FileEditorObservation,
   StrReplaceEditorObservation,
 } from "#/types/agent-server/core/base/observation";
+import { Undo2 } from "lucide-react";
+import { useSendMessage } from "#/hooks/use-send-message";
+import { useSelectConversationTab } from "#/hooks/use-select-conversation-tab";
 import { defineVisualizer, VisualizerProps } from "../define";
 import { textFromContent } from "../text-content";
 import { CodeBlock } from "../primitives/code-block";
-import { DiffView } from "../primitives/diff-view";
+import { DiffView, computeLineDiff } from "../primitives/diff-view";
 import { FilePathChip } from "../primitives/file-path-chip";
 import {
   isMarkdownFilePath,
@@ -48,6 +51,70 @@ interface FileEditorCardBodyProps extends FileEditorCardProps {
    * Also omitted for in-flight creates so View does not open a missing file.
    */
   onOpenFile?: () => void;
+}
+
+function FileEditSummaryCard({
+  path,
+  oldText,
+  newText,
+}: {
+  path: string;
+  oldText: string;
+  newText: string;
+}) {
+  const { send } = useSendMessage();
+  const { selectTab } = useSelectConversationTab();
+
+  const diffRows = computeLineDiff(oldText, newText);
+  let additions = 0;
+  let deletions = 0;
+  for (const row of diffRows) {
+    if (row.type === "add") additions++;
+    if (row.type === "del") deletions++;
+  }
+
+  const handleUndo = () => {
+    send({
+      action: "message",
+      args: { content: `Deshacer los cambios en ${path}` },
+    });
+  };
+
+  const filename = path.split("/").pop() || path;
+
+  return (
+    <div className="my-2 flex items-center justify-between rounded-lg border border-[var(--oh-border)] bg-[#212121] p-3 shadow-sm">
+      <div className="flex items-center gap-3">
+        <div className="flex h-8 w-8 items-center justify-center rounded bg-[#333]">
+          <span className="text-xs">📝</span>
+        </div>
+        <div className="flex flex-col">
+          <span className="text-sm font-medium text-white">Edited {filename}</span>
+          <div className="flex items-center gap-2 font-mono text-xs">
+            <span className="text-status-success-text">+{additions}</span>
+            <span className="text-status-fail-text">-{deletions}</span>
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={handleUndo}
+          className="flex cursor-pointer items-center gap-1 rounded bg-[#333] px-3 py-1.5 text-xs text-white transition-colors hover:bg-[#444]"
+        >
+          <Undo2 size={14} />
+          Undo
+        </button>
+        <button
+          type="button"
+          onClick={() => selectTab("commits")}
+          className="cursor-pointer rounded bg-[#333] px-3 py-1.5 text-xs text-white transition-colors hover:bg-[#444]"
+        >
+          Review
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function FileEditorCardBody({
@@ -104,7 +171,14 @@ function FileEditorCardBody({
     } else if (obs.old_content != null && obs.new_content != null) {
       // Nullish, not truthy: an empty string is a valid side of the diff —
       // clearing a file or inserting into an empty file must still render it.
-      body = <DiffView oldText={obs.old_content} newText={obs.new_content} />;
+      body = (
+        <FileEditSummaryCard
+          path={path}
+          oldText={obs.old_content}
+          newText={obs.new_content}
+        />
+      );
+      leadingChip = null;
     } else {
       // `view` returns the snippet the agent saw in `content` (the `cat -n`
       // output) rather than `output`/`new_content`, so fall back to it.
@@ -142,7 +216,14 @@ function FileEditorCardBody({
       // `insert` carries only `new_str`, no `old_str`. Key on `new_str` and
       // default `old_str` to "" so an in-flight insert shows an addition diff
       // instead of nothing.
-      body = <DiffView oldText={act.old_str ?? ""} newText={act.new_str} />;
+      body = (
+        <FileEditSummaryCard
+          path={path}
+          oldText={act.old_str ?? ""}
+          newText={act.new_str}
+        />
+      );
+      leadingChip = null;
     }
     return (
       <div className="flex flex-col gap-2">

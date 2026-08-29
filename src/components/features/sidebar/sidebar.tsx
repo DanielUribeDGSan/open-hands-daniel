@@ -200,6 +200,8 @@ export function Sidebar() {
     onOpenManageBackends: () => setManageBackendsModalOpen(true),
   };
 
+  const isElectron = typeof window !== "undefined" && navigator.userAgent.toLowerCase().includes("electron");
+
   return (
     <>
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- the aside acts as a hit-area for the collapsed rail; nested controls handle their own keyboard interactions. */}
@@ -216,7 +218,7 @@ export function Sidebar() {
           setCollapsedRailHovered(false);
         }}
         className={cn(
-          "max-md:hidden flex bg-base flex-col min-h-0 transition-[width,min-width] duration-200",
+          "max-md:hidden flex bg-[#282828] flex-col min-h-0 transition-[width,min-width] duration-200",
           "md:border-r md:border-[var(--oh-border)] md:h-full",
           collapsed
             ? "md:w-[60px] md:min-w-[60px] md:px-2.5"
@@ -224,6 +226,9 @@ export function Sidebar() {
           currentPath === "/" && "md:pb-3",
         )}
       >
+        {isElectron && (
+          <div className="h-8 w-full shrink-0 [-webkit-app-region:drag]" />
+        )}
         <SidebarRailBody
           collapsed={collapsed}
           showCollapseToggle

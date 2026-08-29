@@ -108,6 +108,7 @@ export default function MainApp() {
     location.pathname,
   );
   const showOnboardingPreview = isOnboardingPreviewActive(location.search);
+  const isElectron = typeof window !== "undefined" && navigator.userAgent.toLowerCase().includes("electron");
 
   return (
     <ReactRouterNavigationProvider>

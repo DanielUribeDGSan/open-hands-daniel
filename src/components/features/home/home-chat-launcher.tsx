@@ -40,6 +40,8 @@ import { OpenLauncherButton } from "./open-launcher-button";
 import { OpenWorkspaceDialog } from "./open-workspace-dialog";
 import { OpenRepositoryDialog } from "./open-repository-dialog";
 import { HomeGitControlBarPreview } from "./home-git-control-bar-preview";
+import { useAddWorkspaces } from "#/hooks/mutation/use-local-workspaces-mutations";
+import { HOME_SELECTED_WORKSPACE_PATH_KEY } from "./workspace-selection-form";
 
 export function HomeChatLauncher() {
   const { t } = useTranslation("openhands");
@@ -73,9 +75,21 @@ export function HomeChatLauncher() {
     useConversationStore();
   const { handleUpload } = useChatAttachmentUpload();
   const { error: workspacesError } = useLocalWorkspaces({ enabled: isLocal });
+  const { mutate: addWorkspaces } = useAddWorkspaces();
   const workspacesUnsupportedMessage = isLocal
     ? getWorkspacesUnsupportedMessage(workspacesError, t)
     : null;
+
+  const handleFolderDrop = (path: string) => {
+    addWorkspaces([{ path }]);
+    setPendingWorkspace({ path });
+    try {
+      window.sessionStorage.setItem(HOME_SELECTED_WORKSPACE_PATH_KEY, path);
+    } catch {
+      // ignore
+    }
+    toast.success(`Workspace set to ${path.split("/").pop() || path}`);
+  };
 
   const setWorkspaceMode = (mode: WorkspaceMode) => {
     setWorkspaceModeState(mode);
@@ -241,6 +255,7 @@ export function HomeChatLauncher() {
           <CustomChatInput
             onSubmit={handleSubmitWithModelGuard}
             onFilesPaste={handleUpload}
+            onFolderDrop={handleFolderDrop}
             disabled={isCreating || llmBlocked}
           />
         </div>

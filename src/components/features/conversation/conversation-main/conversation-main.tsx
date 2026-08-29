@@ -26,6 +26,7 @@ export function ConversationMain() {
   const { isRightPanelShown } = useConversationStore();
   const overviewDrawer = useConversationOverviewDrawerOptional();
   const isSecondaryDrawerOpen = Boolean(overviewDrawer?.section);
+  const isElectron = typeof window !== "undefined" && navigator.userAgent.toLowerCase().includes("electron");
 
   const { leftWidth, rightWidth, isDragging, containerRef, handleMouseDown } =
     useResizablePanels({
@@ -81,6 +82,9 @@ export function ConversationMain() {
               : undefined
           }
         >
+          {isElectron && (
+            <div className="h-8 w-full shrink-0 [-webkit-app-region:drag]" />
+          )}
           <div
             data-testid="chat-pane-header"
             className={cn(
@@ -118,7 +122,10 @@ export function ConversationMain() {
             }}
           >
             <div className="flex h-full w-full flex-col">
-              <div className="flex flex-col flex-1 min-h-0 bg-[var(--oh-surface)] border-l border-[var(--oh-border)] overflow-hidden">
+              <div className="flex flex-col flex-1 min-h-0 bg-[#282828] border-l border-[var(--oh-border)] overflow-hidden">
+                {isElectron && (
+                  <div className="h-8 w-full shrink-0 [-webkit-app-region:drag]" />
+                )}
                 <div
                   data-testid="tabs-pane-header"
                   className="flex shrink-0 flex-col border-b border-[var(--oh-border)]"

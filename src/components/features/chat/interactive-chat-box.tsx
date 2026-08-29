@@ -12,6 +12,10 @@ import { useAgentState } from "#/hooks/use-agent-state";
 import { useSubConversationTaskPolling } from "#/hooks/query/use-sub-conversation-task-polling";
 import { partitionImagesForUpload } from "#/components/features/chat/utils/chat-input.utils";
 import { isTaskPolling } from "#/utils/utils";
+import toast from "react-hot-toast";
+import { useNavigation } from "#/context/navigation-context";
+import { useAddWorkspaces } from "#/hooks/mutation/use-local-workspaces-mutations";
+import { HOME_SELECTED_WORKSPACE_PATH_KEY } from "../home/workspace-selection-form";
 
 interface InteractiveChatBoxProps {
   onSubmit: (message: string, images: File[], files: File[]) => void;
@@ -43,6 +47,19 @@ export function InteractiveChatBox({
     );
 
   const { handleUpload } = useChatAttachmentUpload();
+  const { navigate } = useNavigation();
+  const { mutate: addWorkspaces } = useAddWorkspaces();
+
+  const handleFolderDrop = (path: string) => {
+    addWorkspaces([{ path }]);
+    try {
+      window.sessionStorage.setItem(HOME_SELECTED_WORKSPACE_PATH_KEY, path);
+    } catch {
+      // ignore
+    }
+    toast.success(`Workspace changed. Starting a new conversation...`);
+    navigate("/");
+  };
 
   const handleAfterGoal = useBtwInterceptor(conversationId, (message) => {
     const { imagesToEmbed, imagesAsFiles } = partitionImagesForUpload(
@@ -72,6 +89,7 @@ export function InteractiveChatBox({
         hasStartedConversation={hasStartedConversation}
         onSubmit={handleSubmit}
         onFilesPaste={handleUpload}
+        onFolderDrop={handleFolderDrop}
       />
       <div className="mt-3 pb-3">
         <GitControlBar onSuggestionsClick={handleSuggestionsClick} />

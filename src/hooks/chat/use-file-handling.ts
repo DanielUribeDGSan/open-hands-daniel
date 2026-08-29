@@ -17,6 +17,7 @@ interface UseFileHandlingReturn {
  */
 export const useFileHandling = (
   onFilesPaste?: (files: File[], options?: ChatAttachmentUploadOptions) => void,
+  onFolderDrop?: (path: string) => void,
 ): UseFileHandlingReturn => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
@@ -101,13 +102,31 @@ export const useFileHandling = (
       }
 
       e.preventDefault();
-
       setIsDragOver(false);
 
-      const files = Array.from(e.dataTransfer.files);
-      addFiles(files);
+      if (e.dataTransfer.items && e.dataTransfer.files) {
+        for (let i = 0; i < e.dataTransfer.items.length; i++) {
+          const item = e.dataTransfer.items[i];
+          if (item.kind === "file") {
+            const entry = typeof item.webkitGetAsEntry === 'function' ? item.webkitGetAsEntry() : null;
+            if (entry && entry.isDirectory) {
+              const file = e.dataTransfer.files[i]; 
+              const path = file ? (file as any).path : null;
+              if (path && onFolderDrop) {
+                onFolderDrop(path);
+              }
+              return; // Always stop processing if a directory is dropped
+            }
+          }
+        }
+      }
+
+      const files = Array.from(e.dataTransfer.files || []);
+      if (files.length > 0) {
+        addFiles(files);
+      }
     },
-    [addFiles],
+    [addFiles, onFolderDrop],
   );
 
   return {

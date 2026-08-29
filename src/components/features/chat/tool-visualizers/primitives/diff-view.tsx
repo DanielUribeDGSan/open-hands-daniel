@@ -65,7 +65,7 @@ const lcsDiff = (a: string[], b: string[]): DiffRow[] => {
  * a few kept as context) so a localized edit inside a large file stays small
  * and cheap to diff.
  */
-const computeLineDiff = (oldText: string, newText: string): DiffRow[] => {
+export const computeLineDiff = (oldText: string, newText: string): DiffRow[] => {
   const a = oldText.split("\n");
   const b = newText.split("\n");
 

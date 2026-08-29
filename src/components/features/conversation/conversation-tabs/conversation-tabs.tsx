@@ -97,9 +97,9 @@ export function ConversationTabs({
       isActive: isTabActive("commits"),
       icon: LuFileDiff,
       onClick: () => selectTab("commits"),
-      tooltipContent: t(I18nKey.DIFF_VIEWER$COMMITS),
-      tooltipAriaLabel: t(I18nKey.DIFF_VIEWER$COMMITS),
-      label: t(I18nKey.DIFF_VIEWER$COMMITS),
+      tooltipContent: "Review",
+      tooltipAriaLabel: "Review",
+      label: "Review",
     },
     {
       tabValue: "planner",

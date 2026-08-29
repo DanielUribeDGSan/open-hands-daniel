@@ -23,6 +23,7 @@ export interface CustomChatInputProps {
     files: File[],
     options?: import("#/hooks/chat/use-chat-attachment-upload").ChatAttachmentUploadOptions,
   ) => void;
+  onFolderDrop?: (path: string) => void;
   className?: React.HTMLAttributes<HTMLDivElement>["className"];
   buttonClassName?: React.HTMLAttributes<HTMLButtonElement>["className"];
 }
@@ -36,6 +37,7 @@ export function CustomChatInput({
   onFocus,
   onBlur,
   onFilesPaste,
+  onFolderDrop,
   className = "",
   buttonClassName = "",
 }: CustomChatInputProps) {
@@ -101,7 +103,7 @@ export function CustomChatInput({
     handleDragOver,
     handleDragLeave,
     handleDrop,
-  } = useFileHandling(onFilesPaste);
+  } = useFileHandling(onFilesPaste, onFolderDrop);
 
   const {
     gripRef,
