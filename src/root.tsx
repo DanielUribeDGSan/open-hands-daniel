@@ -51,6 +51,7 @@ import {
   applyColorTheme,
   readPersistedColorTheme,
 } from "#/themes/color-themes";
+import OpenHandsLogo from "#/assets/branding/openhands-logo.svg?react";
 
 /** Applies the persisted color-theme palette to document.body on mount. */
 function ColorThemeApplier() {
@@ -116,7 +117,8 @@ function AgentServerBootstrapLoading() {
   return (
     <main className="min-h-screen bg-base px-6 py-10 text-white">
       <div className="mx-auto flex min-h-screen max-w-6xl items-center justify-center">
-        <div className="rounded-3xl border border-white/10 bg-base/80 px-8 py-10 shadow-2xl">
+        <div className="flex flex-col items-center gap-6 rounded-3xl border border-white/10 bg-base/80 px-8 py-10 shadow-2xl">
+          <OpenHandsLogo width={80} height={80} className="animate-pulse drop-shadow-lg" />
           <LoadingSpinner size="large" />
         </div>
       </div>
@@ -222,7 +224,7 @@ export const links: LinksFunction = () => [
 ];
 
 export const meta: MetaFunction = () => [
-  { title: "OpenHands" },
+  { title: "Pair Bot" },
   { name: "description", content: "Let's Start Building!" },
 ];
 

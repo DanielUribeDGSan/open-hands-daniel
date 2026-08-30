@@ -8,7 +8,7 @@ import {
   Settings,
   PanelsTopLeft,
 } from "lucide-react";
-import { OpenHandsLogoButton } from "#/components/shared/buttons/openhands-logo-button";
+import OpenHandsLogo from "#/assets/branding/openhands-logo.svg?react";
 import { NavigationLink } from "#/components/shared/navigation-link";
 import {
   automationListPath,
@@ -123,12 +123,7 @@ export function SidebarRailBody({
               collapsed && showCollapsedExpandButton && "opacity-0",
             )}
           >
-            <OpenHandsLogoButton
-              logoWidth={SIDEBAR_LOGO_WIDTH}
-              logoHeight={SIDEBAR_LOGO_HEIGHT}
-              logoClassName="max-w-none"
-              className={cn(SIDEBAR_ICON_SLOT_CLASS, "overflow-visible")}
-            />
+            {/* Mascot was removed from here to be placed at the bottom */}
           </div>
           {collapsed && showCollapseToggle ? (
             <button
@@ -363,6 +358,9 @@ export function SidebarRailBody({
           >
             <AgentCanvasVersionTile hideWhenUpToDate />
             <BackendSelector sidebarCollapsed={collapsed} openUpward />
+            <div className="flex justify-center pb-4 pt-2">
+              <span className="text-xl font-bold text-white/80 tracking-wide">Pair Bot</span>
+            </div>
           </div>
         </>
       ) : null}
