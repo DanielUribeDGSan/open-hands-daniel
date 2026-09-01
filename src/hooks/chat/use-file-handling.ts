@@ -17,7 +17,6 @@ interface UseFileHandlingReturn {
  */
 export const useFileHandling = (
   onFilesPaste?: (files: File[], options?: ChatAttachmentUploadOptions) => void,
-  onFolderDrop?: (path: string) => void,
 ): UseFileHandlingReturn => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
@@ -104,29 +103,37 @@ export const useFileHandling = (
       e.preventDefault();
       setIsDragOver(false);
 
+      const filesToUpload: File[] = [];
+
       if (e.dataTransfer.items && e.dataTransfer.files) {
         for (let i = 0; i < e.dataTransfer.items.length; i++) {
           const item = e.dataTransfer.items[i];
+          const originalFile = e.dataTransfer.files[i];
           if (item.kind === "file") {
             const entry = typeof item.webkitGetAsEntry === 'function' ? item.webkitGetAsEntry() : null;
             if (entry && entry.isDirectory) {
-              const file = e.dataTransfer.files[i]; 
-              const path = file ? (file as any).path : null;
-              if (path && onFolderDrop) {
-                onFolderDrop(path);
-              }
-              return; // Always stop processing if a directory is dropped
+              // It's a directory! Create a fake file.
+              const path = originalFile ? (originalFile as any).path : null;
+              const folderName = entry.name || originalFile?.name || "folder";
+              const fakeFile = new File([], folderName, { type: "directory" });
+              (fakeFile as any).isFolder = true;
+              (fakeFile as any).folderPath = path || folderName;
+              filesToUpload.push(fakeFile);
+            } else if (originalFile) {
+              filesToUpload.push(originalFile);
             }
           }
         }
+      } else {
+        // Fallback
+        filesToUpload.push(...Array.from(e.dataTransfer.files || []));
       }
 
-      const files = Array.from(e.dataTransfer.files || []);
-      if (files.length > 0) {
-        addFiles(files);
+      if (filesToUpload.length > 0) {
+        addFiles(filesToUpload);
       }
     },
-    [addFiles, onFolderDrop],
+    [addFiles],
   );
 
   return {

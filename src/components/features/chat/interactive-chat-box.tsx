@@ -50,23 +50,23 @@ export function InteractiveChatBox({
   const { navigate } = useNavigation();
   const { mutate: addWorkspaces } = useAddWorkspaces();
 
-  const handleFolderDrop = (path: string) => {
-    addWorkspaces([{ path }]);
-    try {
-      window.sessionStorage.setItem(HOME_SELECTED_WORKSPACE_PATH_KEY, path);
-    } catch {
-      // ignore
-    }
-    toast.success(`Workspace changed. Starting a new conversation...`);
-    navigate("/");
-  };
-
   const handleAfterGoal = useBtwInterceptor(conversationId, (message) => {
     const { imagesToEmbed, imagesAsFiles } = partitionImagesForUpload(
       images,
       imagesMarkedUploadAsFile,
     );
-    onSubmit(message, imagesToEmbed, [...files, ...imagesAsFiles]);
+    
+    // Separate real files from directory files
+    const actualFiles = files.filter(f => !(f as any).isFolder);
+    const folderFiles = files.filter(f => (f as any).isFolder);
+    
+    let finalMessage = message;
+    if (folderFiles.length > 0) {
+      const folderPaths = folderFiles.map(f => (f as any).folderPath || f.name).join("\n");
+      finalMessage += `\n\nDirectorio de referencia:\n${folderPaths}`;
+    }
+    
+    onSubmit(finalMessage, imagesToEmbed, [...actualFiles, ...imagesAsFiles]);
     clearAllFiles();
   });
   const handleAfterModel = useGoalInterceptor(conversationId, handleAfterGoal);
@@ -89,7 +89,6 @@ export function InteractiveChatBox({
         hasStartedConversation={hasStartedConversation}
         onSubmit={handleSubmit}
         onFilesPaste={handleUpload}
-        onFolderDrop={handleFolderDrop}
       />
       <div className="mt-3 pb-3">
         <GitControlBar onSuggestionsClick={handleSuggestionsClick} />
