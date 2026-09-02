@@ -1,12 +1,15 @@
+import { useEffect, useMemo, useRef } from "react";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 import { SyntaxHighlighter } from "#/components/features/markdown/syntax-highlighter";
 import { getPrismLanguageForFile } from "#/utils/file-language";
+import type { AgentFileFocus } from "#/stores/files-tab-store";
 
 interface HighlightedSourceViewProps {
   path: string;
   text: string;
   mimeType?: string;
+  agentFocus?: AgentFileFocus | null;
 }
 
 /**
@@ -27,14 +30,40 @@ export function HighlightedSourceView({
   path,
   text,
   mimeType,
+  agentFocus,
 }: HighlightedSourceViewProps) {
   const language = getPrismLanguageForFile(path, mimeType);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const focusRange = useMemo(() => {
+    if (!agentFocus) return null;
+    let start = agentFocus.startLine;
+    let end = agentFocus.endLine;
+    const focusedText = [agentFocus.oldText, agentFocus.newText].find(
+      (candidate) => candidate && text.includes(candidate),
+    );
+    if (!start && focusedText) {
+      const index = text.indexOf(focusedText);
+      if (index >= 0) {
+        start = text.slice(0, index).split("\n").length;
+        end = start + focusedText.split("\n").length - 1;
+      }
+    }
+    if (!start) start = 1;
+    return { start, end: end ?? start };
+  }, [agentFocus, text]);
+
+  useEffect(() => {
+    if (!focusRange) return;
+    containerRef.current
+      ?.querySelector(`[data-agent-line="${focusRange.start}"]`)
+      ?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [focusRange]);
 
   if (!language) {
     return (
       <pre
         data-testid="file-content-viewer-plain"
-        className="h-full w-full overflow-auto whitespace-pre-wrap break-words bg-[var(--oh-surface)] p-4 text-xs leading-5 text-white custom-scrollbar-always"
+        className="h-full w-full overflow-auto whitespace-pre-wrap break-words bg-[#181818] p-4 text-xs leading-5 text-[#f0f3f6] custom-scrollbar-always"
       >
         {text}
       </pre>
@@ -43,9 +72,10 @@ export function HighlightedSourceView({
 
   return (
     <div
+      ref={containerRef}
       data-testid="file-content-viewer-highlighted"
       data-language={language}
-      className="h-full w-full overflow-auto bg-[var(--oh-surface)] custom-scrollbar-always"
+      className="h-full w-full overflow-auto bg-[#181818] text-[#f0f3f6] custom-scrollbar-always"
     >
       <SyntaxHighlighter
         language={language}
@@ -64,7 +94,11 @@ export function HighlightedSourceView({
           minHeight: "100%",
         }}
         codeTagProps={{
-          style: { background: "transparent", fontFamily: "inherit" },
+          style: {
+            background: "transparent",
+            color: "#f0f3f6",
+            fontFamily: "inherit",
+          },
         }}
         lineNumberStyle={{
           color: "var(--oh-border)",
@@ -72,6 +106,20 @@ export function HighlightedSourceView({
           paddingRight: "1em",
           userSelect: "none",
         }}
+        lineProps={(lineNumber: number) => ({
+          "data-agent-line": lineNumber,
+          style:
+            focusRange &&
+            lineNumber >= focusRange.start &&
+            lineNumber <= focusRange.end
+              ? {
+                  display: "block",
+                  background: "rgba(59, 130, 246, 0.20)",
+                  borderLeft: "2px solid #60a5fa",
+                  marginLeft: "-2px",
+                }
+              : { display: "block" },
+        })}
       >
         {text}
       </SyntaxHighlighter>

@@ -3,6 +3,7 @@ import { FinishAction } from "#/types/agent-server/core/base/action";
 import { ChatMessage } from "../../../features/chat/chat-message";
 import { getEventContent } from "../event-content-helpers/get-event-content";
 import { CriticResultDisplay } from "./critic-result-display";
+import { removeDecorativeEmoji } from "#/utils/remove-decorative-emoji";
 
 interface FinishEventMessageProps {
   event: ActionEvent<FinishAction>;
@@ -23,7 +24,7 @@ export function FinishEventMessage({
     <>
       <ChatMessage
         type="agent"
-        message={message}
+        message={removeDecorativeEmoji(message)}
         isFromPlanningAgent={isFromPlanningAgent}
       />
       {event.critic_result != null && (

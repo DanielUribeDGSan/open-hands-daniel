@@ -3,6 +3,7 @@ import { FaArchive } from "react-icons/fa";
 import { ExecutionStatus } from "#/types/agent-server/core/base/common";
 import { SandboxStatus } from "#/api/conversation-service/agent-server-conversation-service.types";
 import { StyledTooltip } from "#/components/shared/buttons/styled-tooltip";
+import MascotaIcon from "#/icons/mascota.svg?react";
 
 interface ConversationStatusDotProps {
   executionStatus: ExecutionStatus | null | undefined;
@@ -63,18 +64,11 @@ function renderIndicator(visual: Visual) {
   switch (visual) {
     case "check":
       return (
-        <svg
+        <MascotaIcon
           data-testid="conversation-status-check"
-          viewBox="0 0 12 12"
-          className="w-2.5 h-2.5 stroke-[var(--oh-status-success)]"
-          fill="none"
-          strokeWidth={2.25}
-          strokeLinecap="round"
-          strokeLinejoin="round"
+          className="w-3 h-3 text-[var(--oh-status-success)]"
           aria-hidden="true"
-        >
-          <path d="M2.5 6.5 5 9l4.5-5.5" />
-        </svg>
+        />
       );
     case "working":
       return (

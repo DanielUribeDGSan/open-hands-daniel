@@ -1,7 +1,6 @@
-import { DiffEditor, Editor, Monaco } from "@monaco-editor/react";
+import { Editor, Monaco } from "@monaco-editor/react";
 import React from "react";
 import { editor as editor_t } from "monaco-editor";
-import { useTranslation } from "react-i18next";
 import {
   LuFileDiff,
   LuFileMinus,
@@ -12,7 +11,6 @@ import {
 } from "react-icons/lu";
 import { IconType } from "react-icons/lib";
 import { GitChangeStatus } from "#/api/open-hands.types";
-import { I18nKey } from "#/i18n/declaration";
 import { getLanguageFromPath } from "#/utils/get-language-from-path";
 import { cn } from "#/utils/utils";
 import { ChevronDown, ChevronRight } from "lucide-react";
@@ -22,6 +20,7 @@ import { Typography } from "#/ui/typography";
 import { LoadingSpinner } from "./loading-spinner";
 import { EditorContainer } from "./editor-container";
 import { AccordionPanel } from "./accordion-panel";
+import { DiffView } from "#/components/features/chat/tool-visualizers/primitives/diff-view";
 
 type ViewMode = "diff" | "old" | "new";
 
@@ -102,7 +101,6 @@ export function FileDiffViewer({
   isExpanded: controlledExpanded,
   onToggle,
 }: FileDiffViewerProps) {
-  const { t } = useTranslation("openhands");
   const [uncontrolledExpanded, setUncontrolledExpanded] = React.useState(false);
   const isControlled = controlledExpanded !== undefined;
   const isExpanded = isControlled ? controlledExpanded : uncontrolledExpanded;
@@ -118,7 +116,6 @@ export function FileDiffViewer({
   const [hasMeasuredEditorHeight, setHasMeasuredEditorHeight] =
     React.useState(false);
   const [viewMode, setViewMode] = React.useState<ViewMode>("diff");
-  const diffEditorRef = React.useRef<editor_t.IStandaloneDiffEditor>(null);
   const singleEditorRef = React.useRef<editor_t.IStandaloneCodeEditor>(null);
 
   const isAdded = type === "A" || type === "U";
@@ -144,23 +141,6 @@ export function FileDiffViewer({
     commit,
   });
 
-  const updateEditorHeight = React.useCallback(() => {
-    if (!diffEditorRef.current) return;
-    const originalEditor = diffEditorRef.current.getOriginalEditor();
-    const modifiedEditor = diffEditorRef.current.getModifiedEditor();
-    if (originalEditor && modifiedEditor) {
-      setEditorHeight(
-        clampDiffEditorHeight(
-          Math.max(
-            originalEditor.getContentHeight(),
-            modifiedEditor.getContentHeight(),
-          ) + 20,
-        ),
-      );
-      setHasMeasuredEditorHeight(true);
-    }
-  }, []);
-
   const updateSingleEditorHeight = React.useCallback(() => {
     if (singleEditorRef.current) {
       setEditorHeight(
@@ -176,13 +156,6 @@ export function FileDiffViewer({
     setHasMeasuredEditorHeight(false);
     setEditorHeight(0);
   }, [isCollapsed, viewMode]);
-
-  const handleDiffEditorMount = (editor: editor_t.IStandaloneDiffEditor) => {
-    diffEditorRef.current = editor;
-    updateEditorHeight();
-    editor.getOriginalEditor().onDidContentSizeChange(updateEditorHeight);
-    editor.getModifiedEditor().onDidContentSizeChange(updateEditorHeight);
-  };
 
   const handleSingleEditorMount = (editor: editor_t.IStandaloneCodeEditor) => {
     singleEditorRef.current = editor;
@@ -231,22 +204,17 @@ export function FileDiffViewer({
 
   const renderContent = () => {
     if (viewMode === "diff") {
-      return renderEditorShell(
-        <DiffEditor
+      return (
+        <div
           data-testid="file-diff-viewer"
-          className="w-full h-full"
-          language={language}
-          original={isAdded ? "" : (diff?.original ?? "")}
-          modified={isDeleted ? "" : (diff?.modified ?? "")}
-          theme="custom-diff-theme"
-          onMount={handleDiffEditorMount}
-          beforeMount={beforeMount}
-          options={{
-            ...SHARED_EDITOR_OPTIONS,
-            renderSideBySide: !isAdded && !isDeleted,
-            hideUnchangedRegions: { enabled: true },
-          }}
-        />,
+          className="max-h-[600px] overflow-auto border-b border-[var(--oh-border)] bg-[#181818] p-2 custom-scrollbar-always"
+        >
+          <DiffView
+            oldText={isAdded ? "" : (diff?.original ?? "")}
+            newText={isDeleted ? "" : (diff?.modified ?? "")}
+            language={language}
+          />
+        </div>
       );
     }
 
@@ -341,16 +309,7 @@ export function FileDiffViewer({
       </div>
 
       <AccordionPanel open={isExpanded}>
-        {isDeleted && !commit ? (
-          <div
-            data-testid="file-deleted-message"
-            className="w-full border-b border-[var(--oh-border)] p-4 bg-base text-[var(--oh-text-dim)] text-sm"
-          >
-            {t(I18nKey.DIFF_VIEWER$FILE_DELETED)}
-          </div>
-        ) : (
-          isSuccess && renderContent()
-        )}
+        {isSuccess && renderContent()}
       </AccordionPanel>
     </div>
   );

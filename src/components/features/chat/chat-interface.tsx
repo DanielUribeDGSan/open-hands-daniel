@@ -53,6 +53,11 @@ import { useOptionalConversationId } from "#/hooks/use-conversation-id";
 import { useActiveConversation } from "#/hooks/query/use-active-conversation";
 import { I18nKey } from "#/i18n/declaration";
 import { hasConversationStarted } from "./components/resolve-picker-kind";
+import { useConversationOverviewGitDiffStats } from "#/hooks/use-conversation-overview-git-diff-stats";
+import {
+  collectTurnChangeSummaries,
+  TurnChangesCard,
+} from "./turn-changes-card";
 
 function getEntryPoint(
   hasRepository: boolean | null,
@@ -115,6 +120,7 @@ export function ChatInterface() {
   } = useNewConversationCommand();
 
   const { curAgentState } = useAgentState();
+  const gitChangeStats = useConversationOverviewGitDiffStats();
   const { handleBuildPlanClick } = useHandleBuildPlanClick();
 
   // Cloud conversations whose sandbox is MISSING or ERROR are read-only:
@@ -123,6 +129,45 @@ export function ChatInterface() {
   // always null, so this is effectively a no-op for non-cloud use.
   const { data: activeConversation } = useActiveConversation();
   const sandboxStatus = activeConversation?.sandbox_status ?? null;
+  const turnChangeSummaries = React.useMemo(
+    () =>
+      collectTurnChangeSummaries(
+        allConversationEvents,
+        activeConversation?.workspace?.working_dir ?? undefined,
+      ),
+    [activeConversation?.workspace?.working_dir, allConversationEvents],
+  );
+  const latestCompletedChangeSummary = React.useMemo(
+    () => [...turnChangeSummaries.completed.values()].at(-1) ?? null,
+    [turnChangeSummaries.completed],
+  );
+  const gitChangeSummary = React.useMemo(
+    () =>
+      gitChangeStats.changeCount > 0
+        ? {
+            files: gitChangeStats.files,
+            additions: gitChangeStats.additions,
+            deletions: gitChangeStats.deletions,
+          }
+        : null,
+    [
+      gitChangeStats.additions,
+      gitChangeStats.changeCount,
+      gitChangeStats.deletions,
+      gitChangeStats.files,
+    ],
+  );
+  const isAgentActivelyRunning = curAgentState === AgentState.RUNNING;
+  // Live sticky card: only this turn's edits (or current git dirty state).
+  // Never fall back to a previous completed turn while the agent is thinking.
+  const liveTurnChangeSummary =
+    turnChangeSummaries.live ?? gitChangeSummary;
+  // Final transcript card: keep turn edits visible after the agent stops,
+  // even when there was no FinishAction (common with ACP / kimi).
+  const finalTurnChangeSummary =
+    turnChangeSummaries.live ??
+    latestCompletedChangeSummary ??
+    gitChangeSummary;
   const isArchivedConversation = useIsArchivedConversation();
 
   // Block sending in a resumed conversation that has no usable LLM, and show
@@ -573,6 +618,11 @@ export function ChatInterface() {
               />
             )}
 
+            {/* Final turn card stays in the transcript once the agent stops. */}
+            {!isAgentActivelyRunning && finalTurnChangeSummary && (
+              <TurnChangesCard summary={finalTurnChangeSummary} />
+            )}
+
             {/*
             Render the local pending-message queue independently so messages
             the user just submitted show up immediately (with a faded "sending"
@@ -635,27 +685,40 @@ export function ChatInterface() {
             ) : (
               <div className="relative">
                 <div className="pointer-events-none absolute inset-x-0 bottom-full mb-1 z-20">
-                  <div className="flex justify-between relative">
-                    <div className="flex items-end gap-1 pointer-events-auto">
-                      <ConfirmationModeEnabled />
-                      {isStartingStatus && (
-                        <ChatStatusIndicator
-                          statusColor={serverStatusColor}
-                          status={serverStatusText}
-                        />
+                  <div className="relative flex flex-col items-stretch gap-2 px-9">
+                    <div className="flex justify-between">
+                      <div className="flex items-end gap-1 pointer-events-auto">
+                        <ConfirmationModeEnabled />
+                        {isStartingStatus && (
+                          <ChatStatusIndicator
+                            statusColor={serverStatusColor}
+                            status={serverStatusText}
+                          />
+                        )}
+                      </div>
+
+                      {!hitBottom && (
+                        <div className="pointer-events-auto">
+                          <ScrollToBottomButton onClick={scrollDomToBottom} />
+                        </div>
                       )}
                     </div>
 
-                    {!hitBottom ? (
-                      <div className="absolute left-1/2 transform -translate-x-1/2 bottom-0 pointer-events-auto">
-                        <ScrollToBottomButton onClick={scrollDomToBottom} />
+                    {/* Live Codex-style summary sits directly above "Pensando". */}
+                    {isAgentActivelyRunning && liveTurnChangeSummary && (
+                      <div className="pointer-events-auto mx-auto w-full max-w-xl">
+                        <TurnChangesCard
+                          summary={liveTurnChangeSummary}
+                          live
+                          compact
+                        />
                       </div>
-                    ) : (
-                      curAgentState === AgentState.RUNNING && (
-                        <div className="pointer-events-none absolute inset-x-9 bottom-0 flex justify-center">
-                          <TypingIndicator events={allConversationEvents} />
-                        </div>
-                      )
+                    )}
+
+                    {hitBottom && isAgentActivelyRunning && (
+                      <div className="pointer-events-none flex justify-center">
+                        <TypingIndicator events={allConversationEvents} />
+                      </div>
                     )}
                   </div>
                 </div>

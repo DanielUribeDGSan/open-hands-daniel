@@ -14,14 +14,21 @@ export interface DiffChangeListProps {
    * the working-tree diff.
    */
   commit?: string;
+  initialExpandedPath?: string | null;
 }
 
 /**
  * Single-open accordion of file diffs. Expanding one path collapses the
  * previously open one (same behavior as the Commits list).
  */
-export function DiffChangeList({ changes, commit }: DiffChangeListProps) {
-  const [expandedPath, setExpandedPath] = useState<string | null>(null);
+export function DiffChangeList({
+  changes,
+  commit,
+  initialExpandedPath,
+}: DiffChangeListProps) {
+  const [expandedPath, setExpandedPath] = useState<string | null>(
+    initialExpandedPath ?? null,
+  );
 
   return (
     <div data-testid="diff-change-list" className="w-full flex flex-col">

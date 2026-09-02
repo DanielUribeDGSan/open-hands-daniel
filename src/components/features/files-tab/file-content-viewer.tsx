@@ -10,10 +10,14 @@ import { MarkdownRenderer } from "#/components/features/markdown/markdown-render
 import { isMarkdownFilePath } from "#/utils/is-markdown-file-path";
 import { HighlightedSourceView } from "./highlighted-source-view";
 import type { ViewMode } from "./view-mode";
+import type { AgentFileFocus } from "#/stores/files-tab-store";
+import { DiffView } from "#/components/features/chat/tool-visualizers/primitives/diff-view";
+import { getPrismLanguageForFile } from "#/utils/file-language";
 
 interface FileContentViewerProps {
   path: string;
   viewMode: ViewMode;
+  agentFocus?: AgentFileFocus | null;
 }
 
 const HTML_LIKE_EXTS = new Set(["html", "htm", "svg"]);
@@ -66,7 +70,11 @@ function UnpreviewableFallback({ path }: { path: string }) {
  * load naturally. In `plain` mode we always show the raw bytes as text (or
  * a fallback message for binaries).
  */
-export function FileContentViewer({ path, viewMode }: FileContentViewerProps) {
+export function FileContentViewer({
+  path,
+  viewMode,
+  agentFocus,
+}: FileContentViewerProps) {
   const { t } = useTranslation("openhands");
   const query = useWorkspaceFileContent(path);
   // Subscribe to the workspace mutation counter so the iframe / <img> src
@@ -103,6 +111,43 @@ export function FileContentViewer({ path, viewMode }: FileContentViewerProps) {
 
   const { kind, text, staticUrl, mimeType } = query.data;
   const bustedStaticUrl = withWorkspaceCacheBuster(staticUrl, mutationCounter);
+  let liveBefore = agentFocus?.beforeContent;
+  let liveAfter = agentFocus?.afterContent;
+  if (
+    kind === "text" &&
+    text != null &&
+    agentFocus?.oldText &&
+    agentFocus.newText != null
+  ) {
+    if (text.includes(agentFocus.oldText)) {
+      liveBefore = text;
+      liveAfter = text.replace(agentFocus.oldText, agentFocus.newText);
+    } else if (agentFocus.newText && text.includes(agentFocus.newText)) {
+      liveAfter = text;
+      liveBefore = text.replace(agentFocus.newText, agentFocus.oldText);
+    }
+  }
+
+  if (
+    agentFocus?.command !== "view" &&
+    liveBefore !== undefined &&
+    liveAfter !== undefined
+  ) {
+    return (
+      <div
+        className="h-full w-full overflow-auto bg-[#181818] p-3 custom-scrollbar-always"
+        data-testid="file-content-viewer-live-diff"
+      >
+        <DiffView
+          oldText={liveBefore}
+          newText={liveAfter}
+          language={
+            getPrismLanguageForFile(path, mimeType ?? undefined) ?? undefined
+          }
+        />
+      </div>
+    );
+  }
 
   // ----- Plain mode: raw source bytes, syntax-highlighted when we can
   // recognize the grammar (falls through to a `<pre>` otherwise). This
@@ -115,6 +160,7 @@ export function FileContentViewer({ path, viewMode }: FileContentViewerProps) {
           path={path}
           text={text}
           mimeType={mimeType ?? undefined}
+          agentFocus={agentFocus}
         />
       );
     }
@@ -220,6 +266,7 @@ export function FileContentViewer({ path, viewMode }: FileContentViewerProps) {
         path={path}
         text={text}
         mimeType={mimeType ?? undefined}
+        agentFocus={agentFocus}
       />
     );
   }

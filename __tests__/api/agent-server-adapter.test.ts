@@ -1366,6 +1366,19 @@ describe("buildRuntimeServicesSystemSuffix", () => {
 });
 
 describe("agent_settings runtime services suffix", () => {
+  it("always includes the no-unsolicited-dev-server policy", () => {
+    const payload = buildStartConversationRequest({
+      settings: DEFAULT_SETTINGS,
+      query: "hello",
+    }) as {
+      agent_settings: { agent_context: Record<string, unknown> };
+    };
+    const suffix = payload.agent_settings.agent_context
+      .system_message_suffix as string;
+    expect(suffix).toContain("<DEV_SERVER_POLICY>");
+    expect(suffix).toContain("unless the user explicitly asks");
+  });
+
   it("does not set system_message_suffix when no runtime info is provided", () => {
     const payload = buildStartConversationRequest({
       settings: DEFAULT_SETTINGS,
@@ -1406,6 +1419,9 @@ describe("agent_settings runtime services suffix", () => {
     expect(
       payload.agent_settings.agent_context.system_message_suffix as string,
     ).toContain("<RUNTIME_SERVICES>");
+    expect(
+      payload.agent_settings.agent_context.system_message_suffix as string,
+    ).toContain("<DEV_SERVER_POLICY>");
   });
 });
 

@@ -15,6 +15,7 @@ export interface CommitListProps {
   uncommittedChanges: DiffChangeListItem[];
   autoExpandUncommitted?: boolean;
   onAutoExpandHandled?: () => void;
+  initialExpandedPath?: string | null;
 }
 
 /**
@@ -29,6 +30,7 @@ export function CommitList({
   uncommittedChanges,
   autoExpandUncommitted = false,
   onAutoExpandHandled,
+  initialExpandedPath,
 }: CommitListProps) {
   const { t } = useTranslation("openhands");
   const [expandedKey, setExpandedKey] = React.useState<string | null>(null);
@@ -53,6 +55,7 @@ export function CommitList({
             prev === UNCOMMITTED_KEY ? null : UNCOMMITTED_KEY,
           )
         }
+        initialExpandedPath={initialExpandedPath}
       />
       {commits.map((commit) => (
         <CommitRow

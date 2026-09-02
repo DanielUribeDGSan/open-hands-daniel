@@ -2,8 +2,15 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { I18nKey } from "#/i18n/declaration";
 import { cn } from "#/utils/utils";
+import { SyntaxHighlighter } from "#/components/features/markdown/syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
-type DiffRow = { type: "add" | "del" | "ctx"; text: string };
+type DiffRow = {
+  type: "add" | "del" | "ctx";
+  text: string;
+  oldLine?: number;
+  newLine?: number;
+};
 
 /** Lines of unchanged context kept on each side of a change. */
 const CONTEXT = 3;
@@ -65,7 +72,10 @@ const lcsDiff = (a: string[], b: string[]): DiffRow[] => {
  * a few kept as context) so a localized edit inside a large file stays small
  * and cheap to diff.
  */
-export const computeLineDiff = (oldText: string, newText: string): DiffRow[] => {
+export const computeLineDiff = (
+  oldText: string,
+  newText: string,
+): DiffRow[] => {
   const a = oldText.split("\n");
   const b = newText.split("\n");
 
@@ -81,17 +91,29 @@ export const computeLineDiff = (oldText: string, newText: string): DiffRow[] => 
   const lead = a.slice(Math.max(0, lo - CONTEXT), lo);
   const trail = a.slice(hiA, Math.min(a.length, hiA + CONTEXT));
 
+  const startLine = Math.max(0, lo - CONTEXT) + 1;
+  let oldLine = startLine;
+  let newLine = startLine;
   return [
     ...lead.map((text): DiffRow => ({ type: "ctx", text })),
     ...lcsDiff(a.slice(lo, hiA), b.slice(lo, hiB)),
     ...trail.map((text): DiffRow => ({ type: "ctx", text })),
-  ];
+  ].map((row) => {
+    const numbered = {
+      ...row,
+      oldLine: row.type === "add" ? undefined : oldLine,
+      newLine: row.type === "del" ? undefined : newLine,
+    };
+    if (row.type !== "add") oldLine += 1;
+    if (row.type !== "del") newLine += 1;
+    return numbered;
+  });
 };
 
 const ROW_STYLE: Record<DiffRow["type"], string> = {
-  add: "bg-status-success-bg text-status-success-text",
-  del: "bg-status-fail-bg text-status-fail-text",
-  ctx: "text-muted",
+  add: "bg-[#10291f] text-[#9be9b1] border-l-[#2ea043]",
+  del: "bg-[#2d1719] text-[#ffb3ba] border-l-[#f85149]",
+  ctx: "text-[#e6edf3] border-l-transparent",
 };
 const ROW_PREFIX: Record<DiffRow["type"], string> = {
   add: "+ ",
@@ -105,9 +127,11 @@ const ROW_PREFIX: Record<DiffRow["type"], string> = {
 export function DiffView({
   oldText,
   newText,
+  language,
 }: {
   oldText: string;
   newText: string;
+  language?: string;
 }) {
   const { t } = useTranslation("openhands");
   const rows = computeLineDiff(oldText, newText);
@@ -116,15 +140,48 @@ export function DiffView({
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="overflow-auto rounded-lg border border-surface-raised font-mono text-xs">
+      <div className="overflow-auto rounded-lg border border-[#303030] bg-[#181818] font-mono text-xs shadow-inner">
         {shown.map((row, index) => (
           <div
             // Diff rows have no stable id and lines may repeat, so the index
             // within this render is the only available key.
             key={`${index}-${row.type}`}
-            className={cn("whitespace-pre-wrap px-2", ROW_STYLE[row.type])}
+            className={cn(
+              "grid min-h-6 grid-cols-[3.25rem_3.25rem_1fr] border-l-2 leading-6",
+              ROW_STYLE[row.type],
+            )}
           >
-            {`${ROW_PREFIX[row.type]}${row.text}`}
+            <span className="select-none border-r border-[#21262d] px-2 text-right text-[#6e7681]">
+              {row.oldLine ?? ""}
+            </span>
+            <span className="select-none border-r border-[#30363d] px-2 text-right text-[#6e7681]">
+              {row.newLine ?? ""}
+            </span>
+            <code className="flex min-w-0 whitespace-pre-wrap px-3 text-[12px]">
+              <span className="mr-2 inline-block w-2 select-none opacity-80">
+                {ROW_PREFIX[row.type].trim()}
+              </span>
+              {language ? (
+                <SyntaxHighlighter
+                  language={language}
+                  style={vscDarkPlus}
+                  PreTag="span"
+                  CodeTag="span"
+                  customStyle={{
+                    margin: 0,
+                    padding: 0,
+                    background: "transparent",
+                    whiteSpace: "pre-wrap",
+                    overflow: "visible",
+                  }}
+                  codeTagProps={{ style: { background: "transparent" } }}
+                >
+                  {row.text || " "}
+                </SyntaxHighlighter>
+              ) : (
+                row.text || " "
+              )}
+            </code>
           </div>
         ))}
       </div>

@@ -761,6 +761,34 @@ function buildAgentContext(
   const runtimeServicesSuffix =
     buildRuntimeServicesSystemSuffix(runtimeServicesInfo);
   const existingContext = toRecord(agentSettings.agent_context);
+  const existingSystemSuffix =
+    typeof existingContext.system_message_suffix === "string"
+      ? existingContext.system_message_suffix.trim()
+      : "";
+  const responseStyleSuffix =
+    "Use a clean professional writing style in chat responses. Do not use emoji or decorative pictographs.";
+  // Prevents the common habit of spinning up vite/webpack/next/etc. at the end
+  // of every turn — that leaks background processes and occupies ports.
+  const noUnsolicitedServersSuffix = [
+    "<DEV_SERVER_POLICY>",
+    "Do NOT start, restart, or background the user's application (npm run dev,",
+    "npm start, yarn dev, pnpm dev, vite, next dev, flask run, uvicorn, docker",
+    "compose up, or similar) unless the user explicitly asks you to run or",
+    "preview the project in that message.",
+    "Do not verify your work by launching a long-running server. Prefer static",
+    "checks (tests, typecheck, lint, build) when validation is needed.",
+    "If a server is already running, leave it alone; do not pkill/restart it",
+    "unless the user asks.",
+    "</DEV_SERVER_POLICY>",
+  ].join("\n");
+  const systemMessageSuffix = [
+    existingSystemSuffix,
+    runtimeServicesSuffix,
+    responseStyleSuffix,
+    noUnsolicitedServersSuffix,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 
   // Merge bundled public skills with any skills already present in the
   // agent context (e.g. user-defined skills set via the settings API).
@@ -807,9 +835,7 @@ function buildAgentContext(
     // prompt too. The allow-list has no counterpart to send: the backend
     // loads no catalog skills of its own (`load_public_skills` is false).
     disabled_skills: disabledSkills,
-    ...(runtimeServicesSuffix
-      ? { system_message_suffix: runtimeServicesSuffix }
-      : {}),
+    system_message_suffix: systemMessageSuffix,
   };
 }
 

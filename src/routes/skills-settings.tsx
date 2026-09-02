@@ -142,7 +142,7 @@ function SkillsSettingsScreen() {
               </h2>
               <div
                 data-testid="skills-settings-description"
-                className="max-w-2xl text-sm text-tertiary-light"
+                className="max-w-2xl text-sm text-tertiary-light line-clamp-2"
               >
                 {t(I18nKey.SETTINGS$SKILLS_PAGE_DESCRIPTION)}
               </div>
@@ -201,7 +201,7 @@ function SkillsSettingsScreen() {
                 <SkillFacetRail
                   groups={groups}
                   onToggle={handleToggleFacet}
-                  className="hidden w-[240px] shrink-0 self-start md:flex"
+                  className="hidden w-[240px] shrink-0 self-start lg:flex"
                 />
 
                 <section className="flex min-w-0 flex-1 flex-col gap-3">

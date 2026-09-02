@@ -26,7 +26,9 @@ export function ConversationMain() {
   const { isRightPanelShown } = useConversationStore();
   const overviewDrawer = useConversationOverviewDrawerOptional();
   const isSecondaryDrawerOpen = Boolean(overviewDrawer?.section);
-  const isElectron = typeof window !== "undefined" && navigator.userAgent.toLowerCase().includes("electron");
+  const isElectron =
+    typeof window !== "undefined" &&
+    navigator.userAgent.toLowerCase().includes("electron");
 
   const { leftWidth, rightWidth, isDragging, containerRef, handleMouseDown } =
     useResizablePanels({
@@ -62,7 +64,7 @@ export function ConversationMain() {
             chat input doesn't slam the floor. */}
         <div
           className={cn(
-            "flex flex-col bg-base overflow-hidden",
+            "flex flex-col bg-[#181818] overflow-hidden",
             isMobile
               ? "flex-1"
               : cn(
@@ -122,7 +124,7 @@ export function ConversationMain() {
             }}
           >
             <div className="flex h-full w-full flex-col">
-              <div className="flex flex-col flex-1 min-h-0 bg-[#282828] border-l border-[var(--oh-border)] overflow-hidden">
+              <div className="flex flex-col flex-1 min-h-0 bg-[#181818] [--oh-color-base:#181818] [--oh-background:#181818] [--oh-surface:#181818] [--oh-bg-workspace:#181818] border-l border-[var(--oh-border)] overflow-hidden">
                 {isElectron && (
                   <div className="h-8 w-full shrink-0 [-webkit-app-region:drag]" />
                 )}

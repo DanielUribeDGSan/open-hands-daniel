@@ -135,7 +135,7 @@ export default function SkillsPluginsScreen() {
               </h2>
               <div
                 data-testid="plugins-settings-description"
-                className="max-w-2xl text-sm text-tertiary-light"
+                className="max-w-2xl text-sm text-tertiary-light line-clamp-2"
               >
                 {t(I18nKey.SETTINGS$PLUGINS_PAGE_DESCRIPTION)}
               </div>

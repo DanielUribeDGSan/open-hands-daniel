@@ -35,6 +35,9 @@ import { ResizeHandle } from "#/components/ui/resize-handle";
 import RefreshIcon from "#/icons/u-refresh.svg?react";
 import LinkExternalIcon from "#/icons/link-external.svg?react";
 import { useActiveConversation } from "#/hooks/query/use-active-conversation";
+import { useAgentState } from "#/hooks/use-agent-state";
+import { AgentState } from "#/types/agent-state";
+import { FolderTree } from "lucide-react";
 
 /**
  * Workspace file browser. Diff/Commits live in the sibling Commits
@@ -47,6 +50,8 @@ function FilesTab() {
   useAutoRefreshFilesOnEdit();
 
   const { data: activeConversation } = useActiveConversation();
+  const { curAgentState } = useAgentState();
+  const isAgentReadingOrEditing = curAgentState === AgentState.RUNNING;
   const workspacePath = activeConversation?.workspace?.working_dir;
 
   const { conversationId } = useOptionalConversationId();
@@ -57,10 +62,6 @@ function FilesTab() {
   } = useConversationLocalStorageState(conversationId ?? "");
   const contentViewMode = persistedState.filesTabContentViewMode;
   const isTreeVisible = persistedState.filesTabTreeVisible ?? true;
-  const toggleTreeVisible = useCallback(() => {
-    setFilesTabTreeVisible?.(!isTreeVisible);
-  }, [isTreeVisible, setFilesTabTreeVisible]);
-
   const treeLayoutRef = useRef<HTMLDivElement>(null);
   const {
     drawerWidth: treeWidth,
@@ -84,11 +85,21 @@ function FilesTab() {
     (s) => s.selectedConversationId,
   );
   const openPaths = useFilesTabStore((s) => s.openPaths);
+  const agentFocus = useFilesTabStore((s) => s.agentFocus);
+  const clearAgentFocus = useFilesTabStore((s) => s.clearAgentFocus);
   const setSelectedPath = useFilesTabStore((s) => s.setSelectedPath);
   const closeOpenPath = useFilesTabStore((s) => s.closeOpenPath);
   const hydrateForConversation = useFilesTabStore(
     (s) => s.hydrateForConversation,
   );
+  const toggleTreeVisible = useCallback(() => {
+    if (agentFocus) {
+      clearAgentFocus();
+      setFilesTabTreeVisible?.(true);
+    } else {
+      setFilesTabTreeVisible?.(!isTreeVisible);
+    }
+  }, [agentFocus, clearAgentFocus, isTreeVisible, setFilesTabTreeVisible]);
 
   // A selection is scoped to the conversation it was made in. Ignore a path
   // that belongs to a different conversation so we never try to open a file
@@ -101,9 +112,14 @@ function FilesTab() {
   // Tag every selection with the active conversation so it can't leak into
   // the next one. Opening a path also appends it to the tab strip.
   const handleSelectFile = useCallback(
-    (path: string) => setSelectedPath(path, conversationId),
-    [conversationId, setSelectedPath],
+    (path: string) => {
+      clearAgentFocus();
+      setSelectedPath(path, conversationId);
+    },
+    [clearAgentFocus, conversationId, setSelectedPath],
   );
+
+  const showTree = isTreeVisible && !agentFocus;
 
   // Pre-fetch the selected file's content here too so the toolbar's
   // "open in new window" link can reach for its `staticUrl`. react-query
@@ -146,22 +162,38 @@ function FilesTab() {
   };
 
   const quickRowActions = (
-    <button
-      type="button"
-      onClick={refreshFiles}
-      disabled={isRefreshing}
-      aria-label={t(I18nKey.FILES$REFRESH)}
-      title={t(I18nKey.FILES$REFRESH)}
-      data-testid="files-tab-refresh"
-      className="flex items-center justify-center w-[26px] py-1 rounded-[7px] hover:enabled:bg-[var(--oh-interactive-hover)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-    >
-      <RefreshIcon
-        width={12.75}
-        height={15}
-        color="#ffffff"
-        className={isRefreshing ? "animate-spin" : ""}
-      />
-    </button>
+    <div className="flex items-center gap-1">
+      {agentFocus && (
+        <button
+          type="button"
+          onClick={() => {
+            clearAgentFocus();
+            setFilesTabTreeVisible?.(true);
+          }}
+          data-testid="files-tab-show-all-files"
+          className="flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-xs text-[var(--oh-text-secondary)] hover:bg-[var(--oh-interactive-hover)] hover:text-white"
+        >
+          <FolderTree className="h-3.5 w-3.5" aria-hidden />
+          {t(I18nKey.FILES$SHOW_FILE_TREE)}
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={refreshFiles}
+        disabled={isRefreshing}
+        aria-label={t(I18nKey.FILES$REFRESH)}
+        title={t(I18nKey.FILES$REFRESH)}
+        data-testid="files-tab-refresh"
+        className="flex items-center justify-center w-[26px] py-1 rounded-[7px] hover:enabled:bg-[var(--oh-interactive-hover)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <RefreshIcon
+          width={12.75}
+          height={15}
+          color="#ffffff"
+          className={isRefreshing ? "animate-spin" : ""}
+        />
+      </button>
+    </div>
   );
 
   return (
@@ -181,12 +213,12 @@ function FilesTab() {
             selectedPath={selectedPath}
             onSelectFile={handleSelectFile}
             onCloseFile={closeOpenPath}
-            isTreeVisible={isTreeVisible}
+            isTreeVisible={showTree}
             onToggleTree={toggleTreeVisible}
             actions={quickRowActions}
           />
           <div ref={treeLayoutRef} className="flex h-full min-h-0 flex-1">
-            {isTreeVisible && (
+            {showTree && (
               <>
                 <aside
                   className="shrink-0 border-r border-[var(--oh-border)] overflow-y-auto custom-scrollbar-always"
@@ -223,6 +255,24 @@ function FilesTab() {
                       ]}
                       onChange={setFilesTabContentViewMode}
                     />
+                    {isAgentReadingOrEditing &&
+                      agentFocus?.path === selectedPath && (
+                        <span
+                          className="inline-flex items-center gap-1.5 rounded-full border border-[var(--oh-border)] bg-[var(--oh-surface)] px-2.5 py-1 text-xs text-[var(--oh-text-secondary)]"
+                          data-testid="files-tab-agent-activity"
+                          role="status"
+                          aria-live="polite"
+                        >
+                          <span
+                            aria-hidden="true"
+                            className="size-1.5 animate-pulse rounded-full bg-[var(--oh-muted)]"
+                          />
+                          {/* eslint-disable-next-line i18next/no-literal-string */}
+                          {agentFocus.command === "view"
+                            ? "Leyendo archivo"
+                            : "Modificando archivo"}
+                        </span>
+                      )}
                     {selectedFileStaticUrl ? (
                       <a
                         href={selectedFileStaticUrl}
@@ -240,6 +290,9 @@ function FilesTab() {
                   <FileContentViewer
                     path={selectedPath}
                     viewMode={contentViewMode}
+                    agentFocus={
+                      agentFocus?.path === selectedPath ? agentFocus : null
+                    }
                   />
                 </>
               ) : (

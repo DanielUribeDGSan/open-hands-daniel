@@ -14,6 +14,7 @@ interface FilesTabState {
    * conversation. The quick-row tab strip renders only these paths.
    */
   openPaths: string[];
+  agentFocus: AgentFileFocus | null;
   setSelectedPath: (
     path: string | null,
     conversationId?: string | null,
@@ -30,6 +31,22 @@ interface FilesTabState {
     openPaths: string[],
     selectedPath: string | null,
   ) => void;
+  focusAgentFile: (
+    focus: AgentFileFocus,
+    conversationId?: string | null,
+  ) => void;
+  clearAgentFocus: () => void;
+}
+
+export interface AgentFileFocus {
+  path: string;
+  command: "view" | "create" | "str_replace" | "insert" | "undo_edit";
+  startLine?: number;
+  endLine?: number;
+  oldText?: string;
+  newText?: string;
+  beforeContent?: string;
+  afterContent?: string;
 }
 
 function withOpenedPath(
@@ -81,6 +98,7 @@ export const useFilesTabStore = create<FilesTabState>((set) => ({
   selectedPath: null,
   selectedConversationId: null,
   openPaths: [],
+  agentFocus: null,
   setSelectedPath: (selectedPath, conversationId = null) =>
     set((state) => {
       if (selectedPath === null) {
@@ -112,6 +130,23 @@ export const useFilesTabStore = create<FilesTabState>((set) => ({
       persistOpenState(conversationId, next.openPaths, next.selectedPath);
       return next;
     }),
+  focusAgentFile: (focus, conversationId = null) =>
+    set((state) => {
+      const sameConversation = state.selectedConversationId === conversationId;
+      const openPaths = withOpenedPath(
+        state.openPaths,
+        focus.path,
+        sameConversation,
+      );
+      persistOpenState(conversationId, openPaths, focus.path);
+      return {
+        agentFocus: focus,
+        selectedPath: focus.path,
+        selectedConversationId: conversationId,
+        openPaths,
+      };
+    }),
+  clearAgentFocus: () => set({ agentFocus: null }),
   closeOpenPath: (path) =>
     set((state) => {
       if (!state.openPaths.includes(path)) return state;
@@ -136,5 +171,6 @@ export const useFilesTabStore = create<FilesTabState>((set) => ({
       selectedConversationId: conversationId,
       openPaths,
       selectedPath: resolveSelectedPath(openPaths, selectedPath),
+      agentFocus: null,
     }),
 }));

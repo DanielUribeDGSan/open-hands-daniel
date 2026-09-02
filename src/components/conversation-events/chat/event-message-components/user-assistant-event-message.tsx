@@ -7,6 +7,7 @@ import { ImageCarousel } from "../../../features/images/image-carousel";
 import { ConversationConfirmationButtons } from "#/components/shared/buttons/conversation-confirmation-buttons";
 import { parseMessageFromEvent } from "../event-content-helpers/parse-message-from-event";
 import { CriticResultDisplay } from "./critic-result-display";
+import { removeDecorativeEmoji } from "#/utils/remove-decorative-emoji";
 import { CollapsibleThinking } from "./collapsible-thinking";
 import { splitInlineThink } from "../event-thought-helpers";
 import RepoForkedIcon from "#/icons/repo-forked.svg?react";
@@ -112,12 +113,15 @@ export function UserAssistantEventMessage({
       ]
     : undefined;
 
+  const displayMessage =
+    event.source === "agent" ? removeDecorativeEmoji(message) : message;
+
   return (
     <>
       {reasoning && <CollapsibleThinking content={reasoning} />}
       <ChatMessage
         type={event.source}
-        message={message}
+        message={displayMessage}
         isFromPlanningAgent={isFromPlanningAgent}
         actions={actions}
       >

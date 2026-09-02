@@ -3,6 +3,11 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { useEventStore, type OHEvent } from "#/stores/use-event-store";
 import { useWorkspaceMutationCounter } from "#/stores/use-workspace-mutation-counter";
+import { useFilesTabStore } from "#/stores/files-tab-store";
+import { useConversationId } from "#/hooks/use-conversation-id";
+import { useSelectConversationTab } from "#/hooks/use-select-conversation-tab";
+import { toFilesTabPath } from "#/utils/path-utils";
+import ConversationService from "#/api/conversation-service/conversation-service.api";
 
 // `kind` values we treat as a file-mutation observation.
 const FILE_EDIT_OBSERVATION_KINDS = new Set([
@@ -23,6 +28,28 @@ const BASH_OBSERVATION_KINDS = new Set([
   "ExecuteBashObservation",
   "TerminalObservation",
 ]);
+
+const FILE_ACTION_KINDS = new Set([
+  "FileEditorAction",
+  "StrReplaceEditorAction",
+  "PlanningFileEditorAction",
+]);
+
+type FileAction = {
+  kind?: string;
+  command?: "view" | "create" | "str_replace" | "insert" | "undo_edit";
+  path?: string;
+  view_range?: [number, number] | null;
+  insert_line?: number | null;
+  old_str?: string | null;
+  new_str?: string | null;
+  file_text?: string | null;
+};
+
+function getFileAction(event: OHEvent): FileAction | null {
+  const action = (event as { action?: FileAction }).action;
+  return action?.kind && FILE_ACTION_KINDS.has(action.kind) ? action : null;
+}
 
 function isFileMutationObservation(event: OHEvent): boolean {
   // ObservationEvents have `source: "environment"` and an `observation`
@@ -74,6 +101,10 @@ export function useAutoRefreshFilesOnEdit(): void {
     (state) => state.bump,
   );
 
+  const { conversationId } = useConversationId();
+  const focusAgentFile = useFilesTabStore((state) => state.focusAgentFile);
+  const { navigateToTab } = useSelectConversationTab();
+
   // Track which events we've already reacted to. Two parallel stores:
   //
   // 1. `processedIdsRef` — keys events that *have* an id. The event store
@@ -104,7 +135,9 @@ export function useAutoRefreshFilesOnEdit(): void {
 
   useEffect(() => {
     let hasNewFileEdits = false;
+    let editedFilePath: string | null = null;
     let hasNewBashCommands = false;
+    let latestFileAction: FileAction | null = null;
     for (const event of events) {
       const id: string | number | undefined =
         "id" in event ? event.id : undefined;
@@ -119,8 +152,55 @@ export function useAutoRefreshFilesOnEdit(): void {
         } else {
           processedEventsRef.current.add(event);
         }
-        if (isFileMutationObservation(event)) hasNewFileEdits = true;
+        if (isFileMutationObservation(event)) {
+          hasNewFileEdits = true;
+          const obs = (event as { observation?: { path?: string | null } })
+            .observation;
+          if (obs?.path) {
+            editedFilePath = obs.path;
+          }
+        }
+        const fileAction = getFileAction(event);
+        if (fileAction?.path && fileAction.command)
+          latestFileAction = fileAction;
         else if (isBashObservation(event)) hasNewBashCommands = true;
+      }
+    }
+
+    if (latestFileAction?.path && latestFileAction.command) {
+      const workingDir =
+        ConversationService.getCurrentConversation()?.workspace?.working_dir;
+      const path = toFilesTabPath(latestFileAction.path, workingDir);
+      if (path) {
+        const viewRange = latestFileAction.view_range;
+        const insertedLines = latestFileAction.new_str?.split("\n").length ?? 1;
+        const startLine =
+          latestFileAction.command === "insert"
+            ? (latestFileAction.insert_line ?? 0) + 1
+            : viewRange?.[0];
+        const endLine =
+          latestFileAction.command === "insert"
+            ? (startLine ?? 1) + insertedLines - 1
+            : viewRange?.[1] === -1
+              ? undefined
+              : viewRange?.[1];
+        focusAgentFile(
+          {
+            path,
+            command: latestFileAction.command,
+            startLine,
+            endLine,
+            oldText: latestFileAction.old_str ?? undefined,
+            newText: latestFileAction.new_str ?? undefined,
+            beforeContent: latestFileAction.old_str ?? "",
+            afterContent:
+              latestFileAction.command === "create"
+                ? (latestFileAction.file_text ?? "")
+                : (latestFileAction.new_str ?? ""),
+          },
+          conversationId,
+        );
+        navigateToTab("files");
       }
     }
 
@@ -134,6 +214,9 @@ export function useAutoRefreshFilesOnEdit(): void {
     // deliberately NOT invalidated.
     queryClient.invalidateQueries({ queryKey: ["file_changes"] });
     queryClient.invalidateQueries({ queryKey: ["file_diff"] });
+    queryClient.invalidateQueries({
+      queryKey: ["conversation_overview_file_diff"],
+    });
     queryClient.invalidateQueries({ queryKey: ["git_commits"] });
 
     if (hasNewFileEdits) {
@@ -146,6 +229,15 @@ export function useAutoRefreshFilesOnEdit(): void {
       // visible effect on the rendered index.html until the user reloaded
       // the whole canvas.
       bumpWorkspaceMutationCounter();
+
+      if (editedFilePath && !latestFileAction) navigateToTab("files");
     }
-  }, [events, queryClient, bumpWorkspaceMutationCounter]);
+  }, [
+    events,
+    queryClient,
+    bumpWorkspaceMutationCounter,
+    conversationId,
+    focusAgentFile,
+    navigateToTab,
+  ]);
 }

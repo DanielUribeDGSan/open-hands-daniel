@@ -20,9 +20,8 @@ export const EXTENSION_MODULE_CARD_GRID_SINGLE_COLUMN_MAX_PX = 599;
 export const extensionModuleCardGridContainerClassName =
   "@container min-w-0 w-full";
 
-/** Single column in narrow content columns; two columns from 600px container width up. */
 export const extensionModuleCardGridClassName =
-  "grid min-w-0 grid-cols-1 gap-3 @min-[600px]:grid-cols-2";
+  "grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-2";
 
 /** Bordered empty-state panel used on MCP Installed and Automations list pages. */
 export const extensionModuleEmptyStateClassName =

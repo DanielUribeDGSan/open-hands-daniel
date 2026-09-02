@@ -252,7 +252,7 @@ function requireDirectConversationInfo(item: unknown): DirectConversationInfo {
 
   return {
     id: item.id.trim(),
-    title: stringOrNull(item.title),
+    title: stringOrNull(item.title)?.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '').trim() || null,
     created_at: readTimestamp(item, "created_at", "createdAt"),
     updated_at: readTimestamp(item, "updated_at", "updatedAt"),
     execution_status: stringOrNull(item.execution_status),

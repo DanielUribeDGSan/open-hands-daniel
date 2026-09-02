@@ -70,11 +70,22 @@ export function useConversationOverviewGitDiffStats() {
       query.data ? [countGitChangeDiffStats(query.data)] : [],
     ),
   );
+  const files = (gitChanges ?? []).map((change) => {
+    const candidateIndex = diffCandidates.findIndex(
+      (candidate) => candidate.path === change.path,
+    );
+    const stats =
+      candidateIndex >= 0 && diffQueries[candidateIndex]?.data
+        ? countGitChangeDiffStats(diffQueries[candidateIndex].data)
+        : { additions: 0, deletions: 0 };
+    return { path: change.path, ...stats };
+  });
 
   return {
     additions: totals.additions,
     deletions: totals.deletions,
     changeCount: gitChanges?.length ?? 0,
+    files,
     isLoading: isLoadingChanges || isLoadingDiffs,
     isError: isChangesError,
   };

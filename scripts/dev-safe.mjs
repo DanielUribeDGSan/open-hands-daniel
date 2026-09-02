@@ -802,6 +802,8 @@ export function buildAgentServerEnv(config, options = {}) {
     // where the locale is already UTF-8.
     // This is a no-op on Linux/macOS where the locale is already UTF-8.
     PYTHONUTF8: "1",
+    // Tell tools like Vite/Next.js not to open a host browser from inside the sandbox
+    SANDBOX_ENV_BROWSER: "none",
     TMUX_TMPDIR: config.tmuxTmpDir,
     // Parent of stateDir (= ~/.openhands) so settings/secrets match Docker.
     OH_PERSISTENCE_DIR: path.dirname(config.stateDir),

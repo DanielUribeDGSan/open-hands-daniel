@@ -25,6 +25,7 @@ import {
   isAgentErrorEvent,
   isUserMessageEvent,
   isActionEvent,
+  isObservationEvent,
   isConversationStateUpdateEvent,
   isFullStateConversationStateUpdateEvent,
   isAgentStatusConversationStateUpdateEvent,
@@ -61,6 +62,9 @@ import type {
 import EventService from "#/api/event-service/event-service.api";
 import { getAgentServerClientOptions } from "#/api/agent-server-client-options";
 import { useConversationStore } from "#/stores/conversation-store";
+import { useFilesTabStore } from "#/stores/files-tab-store";
+import ConversationService from "#/api/conversation-service/conversation-service.api";
+import { toFilesTabPath } from "#/utils/path-utils";
 import { trackError } from "#/utils/error-handler";
 import { useReadConversationFile } from "#/hooks/mutation/use-read-conversation-file";
 import useMetricsStore, { type MetricsState } from "#/stores/metrics-store";
@@ -629,6 +633,107 @@ export function ConversationWebSocketProvider({
               currentConversationId,
               queryClient,
             );
+
+            const action = event.action as {
+              kind?: string;
+              command?:
+                | "view"
+                | "create"
+                | "str_replace"
+                | "insert"
+                | "undo_edit";
+              path?: string;
+              view_range?: [number, number] | null;
+              insert_line?: number | null;
+              old_str?: string | null;
+              new_str?: string | null;
+              file_text?: string | null;
+            };
+            if (
+              [
+                "FileEditorAction",
+                "StrReplaceEditorAction",
+                "PlanningFileEditorAction",
+              ].includes(action.kind ?? "") &&
+              action.command &&
+              action.path
+            ) {
+              const workingDir =
+                ConversationService.getCurrentConversation()?.workspace
+                  ?.working_dir;
+              const path = toFilesTabPath(action.path, workingDir);
+              if (path) {
+                const startLine =
+                  action.command === "insert"
+                    ? (action.insert_line ?? 0) + 1
+                    : action.view_range?.[0];
+                useFilesTabStore.getState().focusAgentFile(
+                  {
+                    path,
+                    command: action.command,
+                    startLine,
+                    endLine:
+                      action.command === "insert"
+                        ? (startLine ?? 1) +
+                          (action.new_str?.split("\n").length ?? 1) -
+                          1
+                        : action.view_range?.[1] === -1
+                          ? undefined
+                          : action.view_range?.[1],
+                    oldText: action.old_str ?? undefined,
+                    newText: action.new_str ?? undefined,
+                    beforeContent: action.old_str ?? "",
+                    afterContent: action.file_text ?? action.new_str ?? "",
+                  },
+                  conversationId,
+                );
+                const panel = useConversationStore.getState();
+                panel.setSelectedTab("files");
+                panel.setHasRightPanelToggled(true);
+                panel.setIsRightPanelShown(true);
+              }
+            }
+          }
+
+          if (isObservationEvent(event)) {
+            const observation = event.observation as {
+              kind?: string;
+              command?:
+                | "view"
+                | "create"
+                | "str_replace"
+                | "insert"
+                | "undo_edit";
+              path?: string | null;
+              old_content?: string | null;
+              new_content?: string | null;
+              error?: string | null;
+            };
+            if (
+              ["FileEditorObservation", "StrReplaceEditorObservation"].includes(
+                observation.kind ?? "",
+              ) &&
+              observation.path &&
+              observation.command &&
+              !observation.error &&
+              observation.new_content != null
+            ) {
+              const workingDir =
+                ConversationService.getCurrentConversation()?.workspace
+                  ?.working_dir;
+              const path = toFilesTabPath(observation.path, workingDir);
+              if (path) {
+                useFilesTabStore.getState().focusAgentFile(
+                  {
+                    path,
+                    command: observation.command,
+                    beforeContent: observation.old_content ?? "",
+                    afterContent: observation.new_content,
+                  },
+                  conversationId,
+                );
+              }
+            }
           }
 
           // Handle conversation state updates
@@ -654,6 +759,10 @@ export function ConversationWebSocketProvider({
           // Handle ExecuteBashAction events - add command as input to terminal
           if (isExecuteBashActionEvent(event)) {
             appendInput(event.action.command);
+            const panel = useConversationStore.getState();
+            panel.setSelectedTab("terminal");
+            panel.setHasRightPanelToggled(true);
+            panel.setIsRightPanelShown(true);
           }
 
           // Handle ExecuteBashObservation events - add output to terminal
@@ -674,12 +783,20 @@ export function ConversationWebSocketProvider({
                 ? screenshotData
                 : `data:image/png;base64,${screenshotData}`;
               useBrowserStore.getState().setScreenshotSrc(screenshotSrc);
+              const panel = useConversationStore.getState();
+              panel.setSelectedTab("browser");
+              panel.setHasRightPanelToggled(true);
+              panel.setIsRightPanelShown(true);
             }
           }
 
           // Handle BrowserNavigateAction events - update browser store with URL
           if (isBrowserNavigateActionEvent(event)) {
             useBrowserStore.getState().setUrl(event.action.url);
+            const panel = useConversationStore.getState();
+            panel.setSelectedTab("browser");
+            panel.setHasRightPanelToggled(true);
+            panel.setIsRightPanelShown(true);
           }
 
           if (
@@ -882,6 +999,10 @@ export function ConversationWebSocketProvider({
           // Handle ExecuteBashAction events - add command as input to terminal
           if (isExecuteBashActionEvent(event)) {
             appendInput(event.action.command);
+            const panel = useConversationStore.getState();
+            panel.setSelectedTab("terminal");
+            panel.setHasRightPanelToggled(true);
+            panel.setIsRightPanelShown(true);
           }
 
           // Handle ExecuteBashObservation events - add output to terminal

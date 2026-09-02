@@ -57,10 +57,12 @@ function FileEditSummaryCard({
   path,
   oldText,
   newText,
+  onOpenFile,
 }: {
   path: string;
   oldText: string;
   newText: string;
+  onOpenFile?: () => void;
 }) {
   const { send } = useSendMessage();
   const { selectTab } = useSelectConversationTab();
@@ -107,7 +109,7 @@ function FileEditSummaryCard({
         </button>
         <button
           type="button"
-          onClick={() => selectTab("commits")}
+          onClick={onOpenFile}
           className="cursor-pointer rounded bg-[#333] px-3 py-1.5 text-xs text-white transition-colors hover:bg-[#444]"
         >
           Review
@@ -176,6 +178,7 @@ function FileEditorCardBody({
           path={path}
           oldText={obs.old_content}
           newText={obs.new_content}
+          onOpenFile={onOpenFile}
         />
       );
       leadingChip = null;
@@ -221,6 +224,7 @@ function FileEditorCardBody({
           path={path}
           oldText={act.old_str ?? ""}
           newText={act.new_str}
+          onOpenFile={onOpenFile}
         />
       );
       leadingChip = null;

@@ -139,8 +139,18 @@ export function TypingIndicator({ events }: TypingIndicatorProps) {
     >
       <span
         aria-hidden="true"
-        className="size-1.5 shrink-0 animate-pulse rounded-full bg-[var(--oh-status-success)] motion-reduce:animate-none"
-      />
+        className="flex h-3 shrink-0 items-center gap-0.5"
+      >
+        {[0, 1, 2, 3].map((index) => (
+          <span
+            key={index}
+            className="thinking-snake-dot size-1.5 rounded-full bg-[var(--oh-muted)] motion-reduce:animate-pulse"
+            style={{
+              animationDelay: `${index * 110}ms`,
+            }}
+          />
+        ))}
+      </span>
       <span className="min-w-0 truncate">
         {activity.kind === "text" ? (
           activity.text

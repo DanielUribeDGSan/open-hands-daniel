@@ -34,10 +34,12 @@ function GitCommits() {
   const setCommitsAutoExpandSection = useConversationStore(
     (state) => state.setCommitsAutoExpandSection,
   );
-  const handleAutoExpandHandled = useCallback(
-    () => setCommitsAutoExpandSection(null),
-    [setCommitsAutoExpandSection],
+  const commitsAutoExpandPath = useConversationStore(
+    (state) => state.commitsAutoExpandPath,
   );
+  const handleAutoExpandHandled = useCallback(() => {
+    setCommitsAutoExpandSection(null);
+  }, [setCommitsAutoExpandSection]);
 
   const { curAgentState } = useAgentState();
   const runtimeIsActive = !RUNTIME_INACTIVE_STATES.includes(curAgentState);
@@ -63,6 +65,7 @@ function GitCommits() {
             }
             autoExpandUncommitted={commitsAutoExpandSection === "uncommitted"}
             onAutoExpandHandled={handleAutoExpandHandled}
+            initialExpandedPath={commitsAutoExpandPath}
           />
         </div>
       ) : (
