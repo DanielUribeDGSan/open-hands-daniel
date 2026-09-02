@@ -347,9 +347,7 @@ export function SidebarRailBody({
 
       {!collapsed ? (
         <>
-          <div className="mb-2 shrink-0 pr-2.5">
-            <SidebarOnboardingChecklist collapsed={collapsed} />
-          </div>
+
           <div
             className={cn(
               "flex flex-col items-stretch max-w-none box-border shrink-0 gap-2",
@@ -358,8 +356,10 @@ export function SidebarRailBody({
           >
             <AgentCanvasVersionTile hideWhenUpToDate />
             <BackendSelector sidebarCollapsed={collapsed} openUpward />
-            <div className="flex justify-center pb-4 pt-2">
-              <span className="text-xl font-bold text-white/80 tracking-wide">Pair Bot</span>
+            <div className="flex justify-center pb-2 pt-2 text-xs text-white/50">
+              <span>
+                Pair Bot - Built with <a href="https://docs.openhands.dev/" target="_blank" rel="noreferrer" className="underline hover:text-white/80">OpenHands</a>
+              </span>
             </div>
           </div>
         </>
