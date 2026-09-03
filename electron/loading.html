@@ -150,7 +150,7 @@
     }
 
     /* ── Startup-log console ─────────────────────────────────────────────
-       Fills the extra height revealed by "Show details" (the window grows —
+       Fills the extra height revealed by "Ver detalles" (the window grows —
        see setLoadingWindowExpanded in main.mjs); zero-height and clipped
        while the window is collapsed. Interactive: opts out of the window
        drag region and re-enables text selection. */
@@ -197,7 +197,7 @@
       overflow-wrap: anywhere;
     }
     .log:empty::before {
-      content: "Waiting for output…";
+      content: "Esperando salida…";
       color: var(--oh-text-subtle);
     }
 
@@ -239,24 +239,24 @@
       <path d="M63 33C63 16.4315 49.5685 3 33 3C16.4315 3 3 16.4315 3 33C3 49.5685 16.4315 63 33 63"
         stroke="currentColor" stroke-width="6" stroke-linecap="round" />
     </svg>
-    <p id="status" class="status">Starting services<span class="dots"></span></p>
+    <p id="status" class="status">Espera un momento, estamos levantando el servidor<span class="dots"></span></p>
     <p class="hint">
-      First launch downloads Python + the OpenHands agent server.<br />
-      This can take a few minutes on a fresh machine.
+      En el primer arranque puede tardar unos minutos.<br />
+      No cierres la ventana mientras se prepara todo.
     </p>
     <div class="actions">
       <button id="details-toggle" type="button" class="ghost-button">
-        Show details
+        Ver detalles
       </button>
       <button id="quit-button" type="button" class="ghost-button quit-button">
-        Quit
+        Salir
       </button>
     </div>
   </div>
   <div class="console" aria-label="Startup log">
     <div class="console-head">
-      <span>Startup log</span>
-      <button id="copy-logs" type="button" class="ghost-button">Copy</button>
+      <span>Registro de inicio</span>
+      <button id="copy-logs" type="button" class="ghost-button">Copiar</button>
     </div>
     <div id="log" class="log"></div>
   </div>
@@ -269,6 +269,11 @@
       if (!el) return;
       var text = String(line == null ? "" : line);
       el.textContent = text || "";
+      if (!document.body.classList.contains("failed") && text) {
+        var dots = document.createElement("span");
+        dots.className = "dots";
+        el.appendChild(dots);
+      }
     };
 
     // ── Startup-log console ──────────────────────────────────────────────
@@ -321,7 +326,7 @@
 
       function setExpanded(next) {
         expanded = next;
-        toggleBtn.textContent = expanded ? "Hide details" : "Show details";
+        toggleBtn.textContent = expanded ? "Ocultar detalles" : "Ver detalles";
         if (boot) boot.setDetailsExpanded(expanded);
         if (expanded && pinned) logEl.scrollTop = logEl.scrollHeight;
       }
@@ -333,9 +338,9 @@
       copyBtn.addEventListener("click", function () {
         if (!boot) return;
         boot.copyLogs().then(function () {
-          copyBtn.textContent = "Copied";
+          copyBtn.textContent = "Copiado";
           setTimeout(function () {
-            copyBtn.textContent = "Copy";
+            copyBtn.textContent = "Copiar";
           }, 1200);
         });
       });

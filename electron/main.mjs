@@ -289,7 +289,7 @@ let loadingWin = null;
 let mainWin = null;
 
 // Collapsed splash size — loading.html's .container height must match. The
-// expanded height reveals the startup-log console below it ("Show details").
+// expanded height reveals the startup-log console below it ("Ver detalles").
 const LOADING_WIN_WIDTH = 460;
 const LOADING_WIN_HEIGHT = 360;
 const LOADING_WIN_EXPANDED_HEIGHT = 560;
@@ -659,18 +659,18 @@ function handleServiceLog(name, line, level) {
   const clean = sanitizeLogLine(line);
   if (!clean) return;
   // Full-fidelity stream: every service and level goes to the console buffer.
-  // The one-line headline below stays filtered to the interesting services.
+  // The splash headline stays human-readable — raw uvx / JSON logs live under
+  // "Ver detalles", not under the spinner.
   appendBootLog(name, clean, level);
   if (name === "agent-server" || name === "automation") {
-    setLoadingStatus(`${name}: ${clean}`);
+    setLoadingStatus("Espera un momento, estamos levantando el servidor…");
   }
   // Mirror errors to a `[desktop]` terminal line so dev runs stay grep-friendly.
   if (level === "error") {
     console.error(`[desktop] [${name}] ${clean}`);
-    // Errors from ANY service (including ingress/static, which the headline
-    // filter above skips) are worth showing — a dead ingress is exactly the
-    // case where the user would otherwise stare at a silent 120 s timeout.
-    setLoadingStatus(`${name}: ${clean}`);
+    setLoadingStatus(
+      "Algo falló al iniciar. Abre «Ver detalles» para más información.",
+    );
     recentServiceErrors.push(`${name}: ${clean}`);
     if (recentServiceErrors.length > 5) recentServiceErrors.shift();
   }
@@ -745,11 +745,11 @@ app.whenReady().then(async () => {
   createLoadingWindow();
 
   try {
-    setBootPhase("Starting backend services…");
+    setBootPhase("Espera un momento, estamos levantando el servidor…");
     await startStack();
 
     // Stage 1: ingress proxy is bound (anything < 500 on /).
-    setBootPhase("Waiting for proxy…");
+    setBootPhase("Casi listo, conectando los servicios…");
     await waitForUrl("http://localhost:8000");
 
     // Stage 2: the agent-server behind the proxy is actually serving
@@ -757,10 +757,10 @@ app.whenReady().then(async () => {
     // re-probe end-to-end here so that if the user closes the splash race
     // window between processes binding, we still open the main window with
     // a live backend. Cheap (a single 200 response) when everything is up.
-    setBootPhase("Connecting to agent server…");
+    setBootPhase("Abriendo Pair Bot…");
     await waitForAgentServer("http://localhost:8000/server_info", 60_000);
 
-    setBootPhase("Ready.");
+    setBootPhase("Listo.");
     createMainWindow();
   } catch (err) {
     const summary =
