@@ -42,7 +42,7 @@ import {
   nativeTheme,
   shell,
 } from "electron";
-import { chmodSync, existsSync } from "node:fs";
+import { chmodSync, existsSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -377,6 +377,10 @@ function createMainWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      // Required for webUtils.getPathForFile on dragged File objects.
+      sandbox: false,
+      // Resolve dropped File paths + native folder picker (see app-preload.cjs).
+      preload: join(__dirname, "app-preload.cjs"),
     },
   });
 
@@ -553,6 +557,48 @@ ipcMain.handle("boot-log:copy", (event) => {
 ipcMain.handle("boot-log:quit", (event) => {
   if (!isLoadingWinEvent(event)) return;
   app.quit();
+});
+
+/**
+ * Native folder picker for the main window (create-workspace drop/browse flow).
+ * Only callable from the main BrowserWindow, not the splash.
+ */
+ipcMain.handle("desktop:show-open-directory", async (event, options = {}) => {
+  if (
+    !mainWin ||
+    mainWin.isDestroyed() ||
+    event.sender !== mainWin.webContents
+  ) {
+    return [];
+  }
+
+  const allowMultiple = Boolean(options?.multiple);
+  const result = await dialog.showOpenDialog(mainWin, {
+    properties: allowMultiple
+      ? ["openDirectory", "multiSelections"]
+      : ["openDirectory"],
+  });
+
+  if (result.canceled) return [];
+  return result.filePaths ?? [];
+});
+
+ipcMain.handle("desktop:is-directory", (event, targetPath) => {
+  if (
+    !mainWin ||
+    mainWin.isDestroyed() ||
+    event.sender !== mainWin.webContents
+  ) {
+    return false;
+  }
+  if (typeof targetPath !== "string" || targetPath.length === 0) {
+    return false;
+  }
+  try {
+    return statSync(targetPath).isDirectory();
+  } catch {
+    return false;
+  }
 });
 
 // ── Backend stack ─────────────────────────────────────────────────────────────

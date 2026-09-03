@@ -9,10 +9,12 @@ import { usePaginatedConversations } from "#/hooks/query/use-paginated-conversat
 import { useResolvedWorkspaces } from "#/hooks/query/use-resolved-workspaces";
 import { useStartTasks } from "#/hooks/query/use-start-tasks";
 import { useDeleteConversation } from "#/hooks/mutation/use-delete-conversation";
+import { useRemoveWorkspace } from "#/hooks/mutation/use-local-workspaces-mutations";
 import { useUnifiedPauseConversation } from "#/hooks/mutation/use-unified-stop-conversation";
 import { ConfirmArchiveModal } from "./confirm-archive-modal";
 import { ConfirmDeleteModal } from "./confirm-delete-modal";
 import { ConfirmStopModal } from "./confirm-stop-modal";
+import { ConfirmationModal } from "#/components/shared/modals/confirmation-modal";
 import { NavigationLink } from "#/components/shared/navigation-link";
 import { ExitConversationModal } from "./exit-conversation-modal";
 import { useClickOutsideElement } from "#/hooks/use-click-outside-element";
@@ -116,6 +118,12 @@ export function ConversationPanel({
   ] = React.useState(false);
   const [confirmDeleteAllVisible, setConfirmDeleteAllVisible] =
     React.useState(false);
+  const [workspacePendingRemoval, setWorkspacePendingRemoval] = React.useState<{
+    path: string;
+    label: string;
+    conversationIds: string[];
+  } | null>(null);
+  const [isRemovingWorkspace, setIsRemovingWorkspace] = React.useState(false);
   const showOlderConversations = useConversationPanelPreferencesStore(
     (state) => state.showOlderConversations,
   );
@@ -695,6 +703,7 @@ export function ConversationPanel({
 
   const { mutate: deleteConversation, mutateAsync: deleteConversationAsync } =
     useDeleteConversation();
+  const { mutate: removeWorkspace } = useRemoveWorkspace();
   const { mutate: pauseConversation } = useUnifiedPauseConversation();
   const { mutate: updateConversation } = useUpdateConversation();
 
@@ -742,6 +751,71 @@ export function ConversationPanel({
       setOrganizeMode,
     ],
   );
+
+  const handleRemoveWorkspaceGroup = React.useCallback(
+    (group: {
+      label: string;
+      conversations: { id: string }[];
+      launch: ConversationGroupLaunch;
+    }) => {
+      const path = group.launch.workingDir;
+      if (!path) return;
+      setWorkspacePendingRemoval({
+        path,
+        label: group.label,
+        conversationIds: group.conversations.map((conversation) => conversation.id),
+      });
+    },
+    [],
+  );
+
+  const handleConfirmRemoveWorkspace = React.useCallback(async () => {
+    if (!workspacePendingRemoval) return;
+    setIsRemovingWorkspace(true);
+    try {
+      const { path, conversationIds } = workspacePendingRemoval;
+      const known = knownWorkspaces.find(
+        (workspace) =>
+          workspace.path.replace(/\/+$/, "") === path.replace(/\/+$/, "") &&
+          !workspace.parentPath,
+      );
+      if (known) {
+        removeWorkspace(path);
+      }
+
+      const results = await Promise.allSettled(
+        conversationIds.map((conversationId) =>
+          deleteConversationAsync({ conversationId }),
+        ),
+      );
+      const deletedIds = results.flatMap((result, index) =>
+        result.status === "fulfilled" ? [conversationIds[index]] : [],
+      );
+      for (const conversationId of deletedIds) {
+        removeArchivedConversation(activeBackend.id, conversationId);
+      }
+      if (
+        currentConversationId !== null &&
+        deletedIds.includes(currentConversationId)
+      ) {
+        navigate("/conversations");
+      }
+      displaySuccessToast(t(I18nKey.HOME$WORKSPACE_REMOVED));
+    } finally {
+      setIsRemovingWorkspace(false);
+      setWorkspacePendingRemoval(null);
+    }
+  }, [
+    activeBackend.id,
+    currentConversationId,
+    deleteConversationAsync,
+    knownWorkspaces,
+    navigate,
+    removeArchivedConversation,
+    removeWorkspace,
+    t,
+    workspacePendingRemoval,
+  ]);
 
   const handleDeleteProject = React.useCallback(
     (conversationId: string, title: string) => {
@@ -1196,6 +1270,7 @@ export function ConversationPanel({
             isCreatingConversationFlow={isCreatingConversationFlow}
             activeConversationId={currentConversationId}
             onLaunchFromGroup={launchFromGroup}
+            onRemoveGroup={handleRemoveWorkspaceGroup}
             renderConversationCard={(conversation) =>
               renderConversationCard(conversation)
             }
@@ -1247,6 +1322,30 @@ export function ConversationPanel({
             setSelectedConversationTitle(null);
           }}
           conversationTitle={selectedConversationTitle ?? undefined}
+        />
+      )}
+
+      {workspacePendingRemoval && (
+        <ConfirmationModal
+          text={
+            workspacePendingRemoval.conversationIds.length > 0
+              ? t(I18nKey.HOME$REMOVE_WORKSPACE_WITH_CHATS_CONFIRMATION, {
+                  name: workspacePendingRemoval.label,
+                  count: workspacePendingRemoval.conversationIds.length,
+                })
+              : t(I18nKey.HOME$REMOVE_WORKSPACE_CONFIRMATION, {
+                  name: workspacePendingRemoval.label,
+                })
+          }
+          onConfirm={() => {
+            void handleConfirmRemoveWorkspace();
+          }}
+          onCancel={() => {
+            if (!isRemovingWorkspace) {
+              setWorkspacePendingRemoval(null);
+            }
+          }}
+          isConfirming={isRemovingWorkspace}
         />
       )}
 

@@ -31,10 +31,10 @@ vi.mock("@openhands/typescript-client/clients", async () => {
 });
 
 vi.mock(
-  "#/components/features/home/workspace-dropdown/folder-browser-modal",
+  "#/components/features/home/workspace-dropdown/create-workspace-modal",
   () => ({
-    FolderBrowserModal: ({ isOpen }: { isOpen: boolean }) =>
-      isOpen ? <div data-testid="folder-browser-modal" /> : null,
+    CreateWorkspaceModal: ({ isOpen }: { isOpen: boolean }) =>
+      isOpen ? <div data-testid="create-workspace-modal" /> : null,
   }),
 );
 
@@ -230,7 +230,7 @@ describe("LocalNewConversationMenu", () => {
     await user.click(screen.getByTestId("add-workspaces-button"));
 
     // Assert
-    expect(screen.getByTestId("folder-browser-modal")).toBeInTheDocument();
+    expect(screen.getByTestId("create-workspace-modal")).toBeInTheDocument();
     await user.click(document.body);
     expect(screen.getByTestId("new-conversation-popover")).toBeInTheDocument();
   });

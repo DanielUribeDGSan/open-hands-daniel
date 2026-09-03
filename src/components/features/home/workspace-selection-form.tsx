@@ -19,7 +19,7 @@ import { getWorkspacesUnsupportedMessage } from "#/utils/workspaces-compatibilit
 
 import { BrandButton } from "../settings/brand-button";
 import { WorkspaceDropdown } from "./workspace-dropdown/workspace-dropdown";
-import { FolderBrowserModal } from "./workspace-dropdown/folder-browser-modal";
+import { CreateWorkspaceModal } from "./workspace-dropdown/create-workspace-modal";
 import { ManageWorkspacesModal } from "./workspace-dropdown/manage-workspaces-modal";
 
 interface WorkspaceSelectionFormProps {
@@ -234,7 +234,7 @@ export function WorkspaceSelectionForm({
             : t(I18nKey.HOME$LOADING)}
       </BrandButton>
 
-      <FolderBrowserModal
+      <CreateWorkspaceModal
         isOpen={isBrowserOpen}
         onClose={() => setIsBrowserOpen(false)}
         onAdd={(items) => {
@@ -246,6 +246,19 @@ export function WorkspaceSelectionForm({
           addWorkspaces(items, {
             onSuccess: () => {
               if (lastAdded) handleWorkspaceChange(lastAdded);
+              if (onConfirm || !lastAdded?.path || isCreatingConversation) {
+                return;
+              }
+              createConversation(
+                {
+                  workingDir: lastAdded.path,
+                  entryPoint: "home_create_workspace",
+                },
+                {
+                  onSuccess: (data) =>
+                    navigate(`/conversations/${data.conversation_id}`),
+                },
+              );
             },
           });
         }}

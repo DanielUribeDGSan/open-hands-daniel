@@ -23,8 +23,8 @@ import {
 import { getWorkspacesUnsupportedMessage } from "#/utils/workspaces-compatibility";
 import RepoIcon from "#/icons/repo.svg?react";
 
-import { FolderBrowserModal } from "#/components/features/home/workspace-dropdown/folder-browser-modal";
 import { ManageWorkspacesModal } from "#/components/features/home/workspace-dropdown/manage-workspaces-modal";
+import { CreateWorkspaceModal } from "#/components/features/home/workspace-dropdown/create-workspace-modal";
 
 import { StyledTooltip } from "#/components/shared/buttons/styled-tooltip";
 import { Divider } from "#/ui/divider";
@@ -281,11 +281,42 @@ export function LocalNewConversationMenu({
         </div>
       )}
 
-      <FolderBrowserModal
+      <CreateWorkspaceModal
         isOpen={browserOpen}
         onClose={() => setBrowserOpen(false)}
-        onAdd={(items) => addWorkspaces(items)}
-        onAddParent={(items) => addWorkspaceParents(items)}
+        onAdd={(items) => {
+          const lastAdded = items[items.length - 1];
+          addWorkspaces(items, {
+            onSuccess: () => {
+              setBrowserOpen(false);
+              setOpen(false);
+              if (!lastAdded?.path || isCreating) return;
+              useConversationPanelPreferencesStore
+                .getState()
+                .setOrganizeMode("grouped");
+              createConversation(
+                {
+                  workingDir: lastAdded.path,
+                  entryPoint: "sidebar_create_workspace",
+                },
+                {
+                  onSuccess: (data) => {
+                    navigate(`/conversations/${data.conversation_id}`);
+                  },
+                },
+              );
+            },
+            onError: () => {
+              setBrowserOpen(false);
+              setOpen(false);
+            },
+          });
+        }}
+        onAddParent={(items) => {
+          addWorkspaceParents(items);
+          setBrowserOpen(false);
+          setOpen(false);
+        }}
       />
 
       <ManageWorkspacesModal

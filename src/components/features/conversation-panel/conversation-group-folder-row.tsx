@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Folder, FolderOpen, Plus } from "lucide-react";
+import { Folder, FolderOpen, Plus, Trash2 } from "lucide-react";
 import { useRef, type DragEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { AppConversation } from "#/api/conversation-service/agent-server-conversation-service.types";
@@ -38,6 +38,8 @@ interface ConversationGroupFolderRowProps {
   onDrop: (event: DragEvent<HTMLElement>) => void;
   onTogglePreviewExpanded: () => void;
   onLaunchFromGroup: () => void;
+  /** When set, shows a delete control for this workspace folder. */
+  onRemoveGroup?: () => void;
   renderConversationCard: (conversation: AppConversation) => ReactNode;
 }
 
@@ -59,6 +61,7 @@ export function ConversationGroupFolderRow({
   onDrop,
   onTogglePreviewExpanded,
   onLaunchFromGroup,
+  onRemoveGroup,
   renderConversationCard,
 }: ConversationGroupFolderRowProps) {
   const { t } = useTranslation("openhands");
@@ -240,6 +243,30 @@ export function ConversationGroupFolderRow({
               strokeWidth={2}
             />
           </button>
+          {onRemoveGroup ? (
+            <button
+              type="button"
+              className={cn(
+                "inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md",
+                "text-inherit transition-colors",
+                "hover:bg-red-500/15 hover:text-red-300",
+                "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--oh-border)]",
+              )}
+              aria-label={t(I18nKey.HOME$REMOVE_WORKSPACE)}
+              data-testid={`remove-workspace-group-${groupTestIdSuffix}`}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onRemoveGroup();
+              }}
+            >
+              <Trash2
+                className="h-3.5 w-3.5 shrink-0"
+                aria-hidden
+                strokeWidth={2}
+              />
+            </button>
+          ) : null}
         </div>
         {expanded ? (
           <div
