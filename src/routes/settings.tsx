@@ -83,12 +83,14 @@ function SettingsScreen() {
         <SettingsLayout navigationItems={navItems}>
           <div className="flex flex-col gap-6 pb-8">
             {!shouldHideTitle && (
-              <header className="space-y-1">
-                <Typography.H2>{t(currentSectionTitle)}</Typography.H2>
+              <header className="min-w-0 space-y-1">
+                <Typography.H2 className="text-balance leading-snug">
+                  {t(currentSectionTitle)}
+                </Typography.H2>
                 {currentSectionSubtitle ? (
                   <p
                     data-testid="settings-page-subtitle"
-                    className="text-sm leading-5 text-tertiary-light"
+                    className="text-pretty text-sm leading-5 text-tertiary-light"
                   >
                     {t(currentSectionSubtitle)}
                   </p>

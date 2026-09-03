@@ -154,7 +154,9 @@ describe("AutomationsList — manifest-declared dashboard", () => {
 
     // Assert — navigation, tiles, and controls all carry manifest captions;
     // the full catalog stays on Templates, and the compact rail is empty-state only.
-    const nav = screen.getByTestId("automations-navbar-desktop");
+    const nav =
+      screen.queryByTestId("automations-navbar-desktop") ??
+      screen.getByTestId("automations-navbar-compact");
     const automationsTile = screen.getByTestId("overview-tile-automations");
     const filters = screen.getByTestId("automations-filters");
     await userEvent.click(within(filters).getByTestId("dropdown-trigger"));

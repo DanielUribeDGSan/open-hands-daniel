@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { ExtensionsNavigation } from "#/components/features/skills/extensions-navigation";
+import { ExtensionsPageShell } from "#/components/features/skills/extensions-page-shell";
 import { AddCanvasExtensionModal } from "#/components/features/canvas-extensions/add-canvas-extension-modal";
 import { CanvasExtensionCard } from "#/components/features/canvas-extensions/canvas-extension-card";
 import { BrandButton } from "#/components/features/settings/brand-button";
@@ -77,19 +77,15 @@ export default function CanvasExtensionsScreen() {
         : "";
 
   return (
-    <div
-      data-testid="canvas-extensions-screen"
-      className="flex h-full gap-4 md:gap-6 md:pl-8 lg:gap-10 lg:pl-10"
-    >
-      <ExtensionsNavigation />
+    <ExtensionsPageShell testId="canvas-extensions-screen">
       <main className={cn(settingsLikeMainScrollClassName, "h-full")}>
         <div className="mx-auto flex w-full min-w-0 max-w-[800px] flex-col gap-6">
-          <div className="flex min-w-0 items-start justify-between gap-4">
-            <div className="min-w-0 space-y-1">
-              <h2 className="text-xl font-semibold leading-6 text-foreground">
+          <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
+            <div className="min-w-0 flex-1 space-y-1">
+              <h2 className="text-balance text-xl font-semibold leading-snug text-foreground">
                 {t(I18nKey.NAV$EXTENSIONS)}
               </h2>
-              <p className="max-w-2xl text-sm text-tertiary-light">
+              <p className="max-w-2xl text-pretty text-sm text-tertiary-light">
                 {t(I18nKey.SETTINGS$CANVAS_EXTENSIONS_PAGE_DESCRIPTION)}
               </p>
             </div>
@@ -100,7 +96,7 @@ export default function CanvasExtensionsScreen() {
               isDisabled={
                 !backendCanSupportExtensions || unsupported || query.isLoading
               }
-              className="flex-shrink-0 whitespace-nowrap"
+              className="w-full shrink-0 whitespace-nowrap lg:w-auto"
               onClick={() => setShowAddModal(true)}
             >
               {t(I18nKey.SETTINGS$CANVAS_EXTENSIONS_ADD_BUTTON)}
@@ -197,6 +193,6 @@ export default function CanvasExtensionsScreen() {
           isConfirming={isBusy}
         />
       ) : null}
-    </div>
+    </ExtensionsPageShell>
   );
 }

@@ -22,22 +22,22 @@ export function ChatSuggestions({ onSuggestionsClick }: ChatSuggestionsProps) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3, ease: "easeInOut" }}
-          className="pointer-events-auto absolute inset-x-4 bottom-[151px] top-0 flex flex-col items-center justify-center md:inset-x-8"
+          className="pointer-events-auto absolute inset-x-3 top-0 bottom-[151px] flex min-h-0 flex-col overflow-y-auto overflow-x-hidden py-3 md:inset-x-6"
         >
-          <div className="flex flex-col items-center p-4 rounded-xl w-full">
-            <span className="pb-6 text-[32px] font-medium leading-5 text-white">
+          <div className="mx-auto flex w-full max-w-[560px] flex-1 flex-col items-center justify-center gap-4 sm:gap-6">
+            <h2 className="w-full shrink-0 px-2 text-center text-2xl font-medium leading-tight text-white sm:text-[32px] sm:leading-[1.2]">
               {t(I18nKey.LANDING$TITLE)}
-            </span>
+            </h2>
+            <Suggestions
+              suggestions={Object.entries(SUGGESTIONS.repo)
+                .slice(0, 4)
+                .map(([label, value]) => ({
+                  label,
+                  value,
+                }))}
+              onSuggestionClick={onSuggestionsClick}
+            />
           </div>
-          <Suggestions
-            suggestions={Object.entries(SUGGESTIONS.repo)
-              .slice(0, 4)
-              .map(([label, value]) => ({
-                label,
-                value,
-              }))}
-            onSuggestionClick={onSuggestionsClick}
-          />
         </motion.div>
       )}
     </AnimatePresence>

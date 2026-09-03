@@ -3,6 +3,7 @@ import { Folder, FolderOpen, Plus } from "lucide-react";
 import { useRef, type DragEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { AppConversation } from "#/api/conversation-service/agent-server-conversation-service.types";
+import { StyledTooltip } from "#/components/shared/buttons/styled-tooltip";
 import { I18nKey } from "#/i18n/declaration";
 import { cn } from "#/utils/utils";
 import type {
@@ -183,12 +184,32 @@ export function ConversationGroupFolderRow({
               )}
               aria-hidden
             />
-            <span className="min-w-0 truncate">{group.label}</span>
-            {group.subtitle ? (
-              <span className="min-w-0 shrink truncate text-xs font-normal text-[var(--oh-text-dim)]">
-                {group.subtitle}
+            <StyledTooltip
+              content={
+                group.subtitle ? (
+                  <div className="flex max-w-[280px] flex-col gap-0.5">
+                    <span className="break-words">{group.label}</span>
+                    <span className="break-all text-[11px] font-normal text-white/70">
+                      {group.subtitle}
+                    </span>
+                  </div>
+                ) : (
+                  group.label
+                )
+              }
+              placement="top-start"
+              offset={4}
+              tooltipClassName="!bg-[var(--oh-surface-raised)] !text-white border border-[var(--oh-border)]"
+            >
+              <span className="flex min-w-0 flex-1 items-center gap-2">
+                <span className="min-w-0 truncate">{group.label}</span>
+                {group.subtitle ? (
+                  <span className="min-w-0 shrink truncate text-xs font-normal text-[var(--oh-text-dim)]">
+                    {group.subtitle}
+                  </span>
+                ) : null}
               </span>
-            ) : null}
+            </StyledTooltip>
           </button>
           <button
             type="button"

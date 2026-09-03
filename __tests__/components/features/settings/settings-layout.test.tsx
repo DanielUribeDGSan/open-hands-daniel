@@ -30,7 +30,10 @@ describe("SettingsLayout", () => {
       </QueryClientProvider>,
     );
 
-    expect(screen.getByTestId("settings-navbar-desktop")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("settings-navbar-desktop") ??
+        screen.getByTestId("settings-navbar-compact"),
+    ).toBeInTheDocument();
     expect(screen.getByTestId("page-body")).toBeInTheDocument();
   });
 });

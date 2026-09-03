@@ -103,7 +103,9 @@ describe("an interface manifest that declares no sub-page surface", () => {
     // Assert — nothing of the sub-page surface renders, and the catalog
     // launcher stays on the list page.
     expect({
-      nav: screen.queryByTestId("automations-navbar-desktop"),
+      nav:
+        screen.queryByTestId("automations-navbar-desktop") ??
+        screen.queryByTestId("automations-navbar-compact"),
       tile: screen.queryByTestId("overview-tile-automations"),
       statusFilter: screen.queryByTestId("automations-filters"),
       launcher: await screen.findByTestId("recommended-automations-section"),

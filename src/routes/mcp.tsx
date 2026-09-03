@@ -1,6 +1,6 @@
 import React from "react";
 import { AxiosError } from "axios";
-import { ExtensionsNavigation } from "#/components/features/skills/extensions-navigation";
+import { ExtensionsPageShell } from "#/components/features/skills/extensions-page-shell";
 import { useTranslation } from "react-i18next";
 import { I18nKey } from "#/i18n/declaration";
 import { BrandButton } from "#/components/features/settings/brand-button";
@@ -93,46 +93,36 @@ export default function MCPPage() {
 
   if (isLoading || !settings) {
     return (
-      <div
-        data-testid="mcp-page"
-        className="flex h-full gap-4 md:gap-6 md:pl-8 lg:gap-10 lg:pl-10"
-      >
-        <ExtensionsNavigation />
+      <ExtensionsPageShell testId="mcp-page">
         <div className="flex h-full flex-1 items-center justify-center px-4 md:px-0">
           <div className="h-8 w-8 rounded-full border-2 border-transparent border-t-white animate-spin" />
         </div>
-      </div>
+      </ExtensionsPageShell>
     );
   }
 
   return (
-    <div
-      data-testid="mcp-page"
-      className="flex h-full gap-4 md:gap-6 md:pl-8 lg:gap-10 lg:pl-10"
-    >
-      <ExtensionsNavigation />
+    <ExtensionsPageShell testId="mcp-page">
       <main className={settingsLikeMainScrollClassName}>
         <div className="mx-auto flex w-full min-w-0 max-w-[800px] flex-col gap-6">
-          <div className="min-w-0">
-            <div className="flex items-start justify-between gap-4">
-              <div className="space-y-1">
-                <h2 className="text-xl font-medium leading-6 text-foreground">
-                  {t(I18nKey.SETTINGS$MCP_TITLE)}
-                </h2>
-                <div className="max-w-2xl text-sm text-tertiary-light">
-                  {t(I18nKey.MCP$PAGE_DESCRIPTION)}
-                </div>
+          <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
+            <div className="min-w-0 flex-1 space-y-1">
+              <h2 className="text-balance text-xl font-medium leading-snug text-foreground">
+                {t(I18nKey.SETTINGS$MCP_TITLE)}
+              </h2>
+              <div className="max-w-2xl text-pretty text-sm text-tertiary-light">
+                {t(I18nKey.MCP$PAGE_DESCRIPTION)}
               </div>
-              <BrandButton
-                type="button"
-                variant="secondary"
-                testId="mcp-add-custom-server"
-                className="flex-shrink-0 whitespace-nowrap"
-                onClick={() => setEditingServer({ id: "", type: "sse" })}
-              >
-                {t(I18nKey.MCP$ADD_CUSTOM)}
-              </BrandButton>
             </div>
+            <BrandButton
+              type="button"
+              variant="secondary"
+              testId="mcp-add-custom-server"
+              className="w-full shrink-0 whitespace-nowrap lg:w-auto"
+              onClick={() => setEditingServer({ id: "", type: "sse" })}
+            >
+              {t(I18nKey.MCP$ADD_CUSTOM)}
+            </BrandButton>
           </div>
 
           <McpToolbar
@@ -184,6 +174,6 @@ export default function MCPPage() {
           />
         )}
       </main>
-    </div>
+    </ExtensionsPageShell>
   );
 }

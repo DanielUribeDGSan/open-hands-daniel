@@ -4,8 +4,14 @@ import {
   SIDEBAR_ROW_INTERACTIVE_CLASS,
   sidebarNavRowClassName,
 } from "#/components/features/sidebar/sidebar-layout";
+import { DesktopWindowDragRegion } from "#/components/shared/desktop-window-drag-region";
+import { HorizontalScrollTabs } from "#/components/shared/horizontal-scroll-tabs";
+import { useBreakpoint } from "#/hooks/use-breakpoint";
 import { settingsLikeMainScrollClassName } from "#/utils/settings-like-page-layout-classes";
 import { cn } from "#/utils/utils";
+
+/** Matches Tailwind `xl` (1280px): aside below this width squeezes the content. */
+const MANIFEST_ASIDE_MIN_WIDTH = 1279;
 
 export interface SubPageNavItem {
   to: string;
@@ -23,7 +29,13 @@ interface ManifestSubpageLayoutProps {
   children: React.ReactNode;
 }
 
-function SubPageNavLink({ item }: { item: SubPageNavItem }) {
+function SubPageNavLink({
+  item,
+  compact = false,
+}: {
+  item: SubPageNavItem;
+  compact?: boolean;
+}) {
   return (
     <NavigationLink
       to={item.to}
@@ -31,11 +43,20 @@ function SubPageNavLink({ item }: { item: SubPageNavItem }) {
       data-testid={item.testId}
       className={({ isActive }) =>
         cn(
-          sidebarNavRowClassName(),
-          "truncate whitespace-nowrap",
-          isActive
-            ? SIDEBAR_ROW_INTERACTIVE_CLASS.active
-            : SIDEBAR_ROW_INTERACTIVE_CLASS.idle,
+          compact
+            ? cn(
+                "inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm",
+                isActive
+                  ? "bg-[var(--oh-interactive-hover)] text-white"
+                  : "text-[var(--oh-text-secondary)] hover:bg-[var(--oh-interactive-hover)] hover:text-white",
+              )
+            : cn(
+                sidebarNavRowClassName(),
+                "truncate whitespace-nowrap",
+                isActive
+                  ? SIDEBAR_ROW_INTERACTIVE_CLASS.active
+                  : SIDEBAR_ROW_INTERACTIVE_CLASS.idle,
+              ),
         )
       }
     >
@@ -48,10 +69,9 @@ function SubPageNavLink({ item }: { item: SubPageNavItem }) {
 }
 
 /**
- * The shell of a manifest-declared sub-page: a sticky desktop aside and a
- * horizontal mobile strip around a settings-like scrolling content column.
- * Purely presentational — what the items are, and whether any exist at all,
- * is the caller's (ultimately the manifest's) statement.
+ * The shell of a manifest-declared sub-page: sticky aside on wide desktops,
+ * compact horizontal tabs when the window is mid-size, and a scrolling
+ * content column. Purely presentational.
  */
 export function ManifestSubpageLayout({
   heading,
@@ -59,32 +79,58 @@ export function ManifestSubpageLayout({
   items,
   children,
 }: ManifestSubpageLayoutProps) {
+  const isCompactNav = useBreakpoint(MANIFEST_ASIDE_MIN_WIDTH);
+
   return (
-    <div className="flex h-full gap-4 md:gap-6 md:pl-8 lg:gap-10 lg:pl-10">
-      <aside
-        data-testid={`${navTestIdBase}-desktop`}
-        className="hidden md:flex md:w-[260px] md:shrink-0 md:flex-col md:gap-2 md:sticky md:top-8 md:self-start"
+    <div className="flex h-full flex-col">
+      <DesktopWindowDragRegion />
+      <div
+        className={cn(
+          "flex min-h-0 flex-1 gap-4 md:gap-6",
+          isCompactNav ? "md:pl-0 lg:gap-6" : "md:pl-8 xl:gap-10 xl:pl-10",
+        )}
       >
-        <span className="px-2 text-sm font-normal text-white">{heading}</span>
-        <div className="flex flex-col gap-0.5 pt-0.5">
-          {items.map((item) => (
-            <SubPageNavLink key={item.to} item={item} />
-          ))}
-        </div>
-      </aside>
-      <main className={cn(settingsLikeMainScrollClassName, "h-full")}>
-        <div className="mx-auto flex w-full min-w-0 max-w-[800px] flex-col gap-6">
-          <nav
-            data-testid={`${navTestIdBase}-mobile`}
-            className="md:hidden flex gap-1 overflow-x-auto border-b border-[var(--oh-border)] pb-2"
+        {!isCompactNav ? (
+          <aside
+            data-testid={`${navTestIdBase}-desktop`}
+            className="flex w-[220px] shrink-0 flex-col gap-2 sticky top-0 self-start"
           >
-            {items.map((item) => (
-              <SubPageNavLink key={item.to} item={item} />
-            ))}
-          </nav>
-          {children}
-        </div>
-      </main>
+            <span className="px-2 text-sm font-normal text-white">
+              {heading}
+            </span>
+            <div className="flex flex-col gap-0.5 pt-0.5">
+              {items.map((item) => (
+                <SubPageNavLink key={item.to} item={item} />
+              ))}
+            </div>
+          </aside>
+        ) : null}
+
+        <main className={cn(settingsLikeMainScrollClassName, "h-full")}>
+          <div className="mx-auto flex w-full min-w-0 max-w-[800px] flex-col gap-5 md:gap-6">
+            {isCompactNav ? (
+              <HorizontalScrollTabs data-testid={`${navTestIdBase}-compact`}>
+                {items.map((item) => (
+                  <SubPageNavLink key={item.to} item={item} compact />
+                ))}
+              </HorizontalScrollTabs>
+            ) : null}
+            {/* Keep a mobile-only strip for very small viewports when the
+                wide aside is mounted (jsdom / SSR edge cases). */}
+            {!isCompactNav ? (
+              <HorizontalScrollTabs
+                data-testid={`${navTestIdBase}-mobile`}
+                className="md:hidden"
+              >
+                {items.map((item) => (
+                  <SubPageNavLink key={item.to} item={item} compact />
+                ))}
+              </HorizontalScrollTabs>
+            ) : null}
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

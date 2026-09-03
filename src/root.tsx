@@ -115,12 +115,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
 function AgentServerBootstrapLoading() {
   return (
-    <main className="min-h-screen bg-base px-6 py-10 text-white">
-      <div className="mx-auto flex min-h-screen max-w-6xl items-center justify-center">
-        <div className="flex flex-col items-center gap-6 rounded-3xl border border-white/10 bg-base/80 px-8 py-10 shadow-2xl">
-          <OpenHandsLogo width={80} height={80} className="animate-pulse drop-shadow-lg" />
-          <LoadingSpinner size="large" />
-        </div>
+    <main className="flex min-h-screen items-center justify-center bg-base text-white">
+      <div className="flex flex-col items-center gap-5">
+        <OpenHandsLogo width={80} height={80} className="drop-shadow-lg" />
+        <LoadingSpinner size="large" outerClassName="text-white" />
       </div>
     </main>
   );

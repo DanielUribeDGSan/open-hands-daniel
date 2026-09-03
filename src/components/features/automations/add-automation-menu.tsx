@@ -131,7 +131,7 @@ export function AddAutomationMenu({
         type="button"
         variant="secondary"
         testId="automations-add-automation"
-        className="whitespace-nowrap"
+        className="w-full whitespace-nowrap min-[480px]:w-auto"
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}

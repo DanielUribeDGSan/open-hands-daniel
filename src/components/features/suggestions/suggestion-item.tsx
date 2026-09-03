@@ -15,17 +15,18 @@ interface SuggestionItemProps {
 
 export function SuggestionItem({ suggestion, onClick }: SuggestionItemProps) {
   const { t } = useTranslation("openhands");
+  const label = t(suggestion.label);
 
   const itemIcon = useMemo(() => {
     switch (suggestion.label) {
       case "INCREASE_TEST_COVERAGE":
-        return <TachometerFastIcon width={24} height={24} color="#fff" />;
+        return <TachometerFastIcon width={22} height={22} color="#fff" />;
       case "AUTO_MERGE_PRS":
-        return <PrStatusIcon width={19} height={20} color="#fff" />;
+        return <PrStatusIcon width={17} height={18} color="#fff" />;
       case "FIX_README":
-        return <DocumentIcon width={24} height={24} color="#fff" />;
+        return <DocumentIcon width={22} height={22} color="#fff" />;
       case "CLEAN_DEPENDENCIES":
-        return <WaterIcon width={24} height={24} color="#fff" />;
+        return <WaterIcon width={22} height={22} color="#fff" />;
       default:
         return null;
     }
@@ -34,15 +35,18 @@ export function SuggestionItem({ suggestion, onClick }: SuggestionItemProps) {
   return (
     <button
       type="button"
-      className="list-none border border-[var(--oh-border)] rounded-[15px] hover:bg-surface-raised hover:border-[var(--oh-interactive-hover)] transition-colors flex-1 flex items-center justify-center cursor-pointer gap-[10px] h-[55px] px-4"
+      title={label}
+      className="flex min-h-[48px] min-w-0 w-full cursor-pointer list-none items-center justify-center gap-2 rounded-[15px] border border-[var(--oh-border)] px-3 py-2.5 transition-colors hover:border-[var(--oh-interactive-hover)] hover:bg-surface-raised sm:min-h-[55px] sm:gap-2.5 sm:px-4"
       onClick={() => onClick(suggestion.value)}
     >
-      {itemIcon}
+      <span className="shrink-0" aria-hidden>
+        {itemIcon}
+      </span>
       <span
         data-testid="suggestion"
-        className="text-[15px] font-normal leading-5 text-white text-center cursor-pointer"
+        className="min-w-0 flex-1 cursor-pointer text-left text-sm font-normal leading-snug text-white sm:text-center sm:text-[15px] sm:leading-5"
       >
-        {t(suggestion.label)}
+        {label}
       </span>
     </button>
   );

@@ -25,7 +25,10 @@ export function McpToolbar({
   const { t } = useTranslation("openhands");
 
   return (
-    <div data-testid="mcp-toolbar" className="flex items-stretch gap-2">
+    <div
+      data-testid="mcp-toolbar"
+      className="flex flex-col gap-2 min-[480px]:flex-row min-[480px]:items-stretch"
+    >
       <div
         data-testid="mcp-search"
         className={cn(

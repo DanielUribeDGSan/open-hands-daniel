@@ -5,6 +5,7 @@ import {
   isOnboardingPreviewActive,
   OnboardingHost,
 } from "#/components/features/onboarding";
+import { DesktopWindowDragRegion } from "#/components/shared/desktop-window-drag-region";
 
 <PrefetchPageLinks page="/conversations/:conversationId" />;
 
@@ -15,8 +16,9 @@ function HomeScreen() {
   return (
     <div
       data-testid="home-screen"
-      className="custom-scrollbar-always h-full overflow-y-auto rounded-xl bg-transparent px-4 md:px-0 lg:px-[42px]"
+      className="custom-scrollbar-always flex h-full flex-col overflow-y-auto rounded-xl bg-transparent px-4 md:px-0 lg:px-[42px]"
     >
+      <DesktopWindowDragRegion />
       <div className="md:px-4 lg:px-0">
         <LlmNotConfiguredBanner />
       </div>

@@ -112,7 +112,7 @@ describe("SkillsSettingsScreen", () => {
       "skills-settings-description",
     );
     expect(description).toHaveTextContent("SETTINGS$SKILLS_PAGE_DESCRIPTION");
-    expect(screen.getByText("NAV$CUSTOMIZE")).toBeInTheDocument();
+    // Customize nav is aside (wide) or compact tabs (narrow) — both expose section links.
     expect(screen.getByTestId("sidebar-extensions-/skills")).toHaveTextContent(
       "Skills",
     );

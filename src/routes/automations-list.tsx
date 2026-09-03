@@ -334,10 +334,12 @@ export default function AutomationsList() {
   if (isHealthLoading) {
     return renderShell(
       <div>
-        <h1 className="text-xl font-medium text-content">
+        <h1 className="text-balance text-xl font-medium leading-snug text-content">
           {interfaceCopy.listTitle}
         </h1>
-        <p className="mt-1 text-sm text-muted">{interfaceCopy.listSubtitle}</p>
+        <p className="mt-1 text-pretty text-sm text-muted">
+          {interfaceCopy.listSubtitle}
+        </p>
         <div className="mt-6 flex flex-col gap-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <AutomationCardSkeleton key={`skeleton-${String(i)}`} />
@@ -351,10 +353,12 @@ export default function AutomationsList() {
   if (!isBackendHealthy) {
     return renderShell(
       <div>
-        <h1 className="text-xl font-medium text-content">
+        <h1 className="text-balance text-xl font-medium leading-snug text-content">
           {interfaceCopy.listTitle}
         </h1>
-        <p className="mt-1 text-sm text-muted">{interfaceCopy.listSubtitle}</p>
+        <p className="mt-1 text-pretty text-sm text-muted">
+          {interfaceCopy.listSubtitle}
+        </p>
         <BackendNotConfigured onRetry={refetchHealth} />
       </div>,
     );
@@ -362,33 +366,35 @@ export default function AutomationsList() {
 
   return renderShell(
     <>
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-xl font-semibold text-content">
+      {/* Header: keep stacked until lg so title/description never fight the CTAs. */}
+      <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
+        <div className="min-w-0 flex-1 space-y-1">
+          <h1 className="text-balance text-xl font-semibold leading-snug text-content">
             {interfaceCopy.listTitle}
           </h1>
-          <p className="mt-1 text-sm text-muted">
+          <p className="max-w-2xl text-pretty text-sm text-muted">
             {interfaceCopy.listSubtitle}
           </p>
         </div>
-        <div className="flex shrink-0 flex-wrap justify-end gap-2">
+        <div className="flex w-full shrink-0 flex-col gap-2 min-[480px]:flex-row min-[480px]:flex-wrap min-[480px]:justify-start lg:w-auto lg:justify-end">
           {canEdit && (
             <BrandButton
               type="button"
               variant="secondary"
               testId="automations-git-sync"
-              className="whitespace-nowrap"
+              className="w-full min-[480px]:w-auto whitespace-nowrap"
               onClick={() => navigate?.("/automations/git-sync")}
               startContent={<RefreshCw className="size-4" aria-hidden />}
             >
               {t(I18nKey.AUTOMATIONS$GIT_SYNC$NAV_BUTTON)}
             </BrandButton>
           )}
-          <AddAutomationMenu
-            onAdd={() => setIsAddAutomationOpen(true)}
-            onImport={() => setIsImportOpen(true)}
-          />
+          <div className="w-full min-[480px]:w-auto">
+            <AddAutomationMenu
+              onAdd={() => setIsAddAutomationOpen(true)}
+              onImport={() => setIsImportOpen(true)}
+            />
+          </div>
         </div>
       </div>
 
@@ -403,8 +409,8 @@ export default function AutomationsList() {
       {/* Search */}
       <div
         className={cn(
-          "flex items-stretch gap-2",
-          dashboard ? "flex-wrap" : "mt-6",
+          "flex flex-col gap-2 min-[520px]:flex-row min-[520px]:items-stretch min-[520px]:flex-wrap",
+          dashboard ? undefined : "mt-6",
         )}
       >
         <SearchInput value={searchQuery} onChange={setSearchQuery} />

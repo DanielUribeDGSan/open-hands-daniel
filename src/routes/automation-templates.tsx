@@ -30,11 +30,13 @@ export default function AutomationTemplates() {
       navTestIdBase="automations-navbar"
       items={nav.items}
     >
-      <div className="min-w-0">
-        <h1 className="text-xl font-semibold text-content">{spec.title}</h1>
-        <p className="mt-1 text-sm text-muted">{spec.description}</p>
+      <div className="min-w-0 space-y-1">
+        <h1 className="text-balance text-xl font-semibold leading-snug text-content">
+          {spec.title}
+        </h1>
+        <p className="max-w-2xl text-pretty text-sm text-muted">{spec.description}</p>
       </div>
-      <div className="w-full">
+      <div className="w-full min-w-0">
         <SearchInput value={searchQuery} onChange={setSearchQuery} />
       </div>
       <RecommendedAutomationsLauncher query={searchQuery} />

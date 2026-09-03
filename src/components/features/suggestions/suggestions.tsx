@@ -10,7 +10,10 @@ export function Suggestions({
   onSuggestionClick,
 }: SuggestionsProps) {
   return (
-    <div data-testid="suggestions" className="grid grid-cols-2 gap-5 max-w-fit">
+    <div
+      data-testid="suggestions"
+      className="grid w-full min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 md:gap-4"
+    >
       {suggestions.map((suggestion, index) => (
         <SuggestionItem
           key={index}
