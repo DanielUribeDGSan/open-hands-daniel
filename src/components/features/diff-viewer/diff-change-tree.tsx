@@ -11,6 +11,7 @@ import { cn } from "#/utils/utils";
 import { ResizeHandle } from "#/components/ui/resize-handle";
 import { useResizablePanels } from "#/hooks/use-resizable-panels";
 import { FileDiffViewer } from "./file-diff-viewer";
+import type { InlineFileDiff } from "./file-diff-viewer";
 import {
   buildFileTree,
   type FileTreeDirNode,
@@ -26,6 +27,8 @@ export interface DiffChangeTreeProps {
   commit?: string;
   /** Prefer selecting this path when the tree mounts / changes. */
   initialSelectedPath?: string | null;
+  /** Optional turn before/after payloads keyed by path. */
+  inlineDiffs?: Record<string, InlineFileDiff>;
 }
 
 function StatusIcon({ status }: { status: GitChangeStatus }) {
@@ -150,6 +153,7 @@ export function DiffChangeTree({
   changes,
   commit,
   initialSelectedPath,
+  inlineDiffs,
 }: DiffChangeTreeProps) {
   const tree = useMemo(() => buildFileTree(changes), [changes]);
   const pathSet = useMemo(
@@ -211,6 +215,7 @@ export function DiffChangeTree({
             path={selectedChange.path}
             type={selectedChange.status}
             commit={commit}
+            inlineDiff={inlineDiffs?.[selectedChange.path]}
             isExpanded
             onToggle={() => undefined}
           />

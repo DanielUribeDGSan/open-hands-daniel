@@ -5,6 +5,7 @@ import { I18nKey } from "#/i18n/declaration";
 import { CommitRow } from "./commit-row";
 import { UncommittedChangesRow } from "./uncommitted-changes-row";
 import type { DiffChangeListItem } from "./diff-change-list";
+import type { InlineFileDiff } from "./file-diff-viewer";
 
 const UNCOMMITTED_KEY = "uncommitted";
 
@@ -16,6 +17,8 @@ export interface CommitListProps {
   autoExpandUncommitted?: boolean;
   onAutoExpandHandled?: () => void;
   initialExpandedPath?: string | null;
+  /** Turn Vista previa before/after payloads keyed by path. */
+  inlineDiffs?: Record<string, InlineFileDiff>;
 }
 
 /**
@@ -31,6 +34,7 @@ export function CommitList({
   autoExpandUncommitted = false,
   onAutoExpandHandled,
   initialExpandedPath,
+  inlineDiffs,
 }: CommitListProps) {
   const { t } = useTranslation("openhands");
   const [expandedKey, setExpandedKey] = React.useState<string | null>(null);
@@ -69,6 +73,7 @@ export function CommitList({
           )
         }
         initialExpandedPath={initialExpandedPath}
+        inlineDiffs={inlineDiffs}
       />
       {commits.map((commit) => (
         <CommitRow

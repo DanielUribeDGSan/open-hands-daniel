@@ -72,6 +72,34 @@ export const toFilesTabPath = (
   return stripWorkspacePrefix(result).replace(/^\.\//, "");
 };
 
+/**
+ * Like {@link toFilesTabPath}, but when the agent path is absolute and outside
+ * `workingDir` (common with ACP / mismatched workspace roots), collapse to a
+ * short relative display path so Review trees don't nest under `/Users/...`.
+ */
+export const toReviewRelativePath = (
+  path: string,
+  workingDir?: string | null,
+): string => {
+  const normalized = toFilesTabPath(path, workingDir);
+  if (!normalized) return "";
+  if (!normalized.startsWith("/") && !/^[A-Za-z]:\//.test(normalized)) {
+    return normalized;
+  }
+
+  const parts = normalized.replace(/\\/g, "/").split("/").filter(Boolean);
+  const rootName = workingDir ? getPathBasename(workingDir) : "";
+  if (rootName) {
+    const idx = parts.lastIndexOf(rootName);
+    if (idx >= 0 && idx < parts.length - 1) {
+      return parts.slice(idx + 1).join("/");
+    }
+  }
+
+  // e.g. /Users/.../exercises/public/sw.js → public/sw.js
+  return parts.slice(-2).join("/");
+};
+
 const WORKSPACE_FILE_EXTENSION =
   /\.(md|txt|ts|tsx|js|jsx|mjs|cjs|py|json|html?|css|scss|ya?ml|toml|rs|go|java|kt|swift|c|cc|cpp|h|hpp|sh|bash|zsh|sql|xml|svg|pdf|env|rb|php|vue|svelte|lock|ini|cfg|docx?|xlsx?|pptx?|odt|rtf)$/i;
 

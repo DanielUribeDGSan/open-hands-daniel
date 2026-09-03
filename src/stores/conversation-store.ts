@@ -18,6 +18,13 @@ export type ConversationMode = "code" | "plan";
 
 export type CommitsPaneSection = "uncommitted";
 
+/** File payload for turn "Vista previa" — Review tree + inline diffs. */
+export interface CommitsReviewTurnFile {
+  path: string;
+  before: string;
+  after: string;
+}
+
 export interface IMessageToSend {
   text: string;
   timestamp: number;
@@ -35,6 +42,11 @@ interface ConversationState {
    * working-tree paths (Codex "Last Turn" style). Null = show all.
    */
   commitsReviewFilterPaths: string[] | null;
+  /**
+   * Turn before/after contents for Vista previa. When set, Review shows only
+   * these files (Codex-style tree) and renders inline diffs instead of git.
+   */
+  commitsReviewTurnFiles: CommitsReviewTurnFile[] | null;
   images: File[];
   files: File[];
   /** Image file names (e.g. pasted screenshots) to send via file upload instead of vision embed. */
@@ -65,6 +77,9 @@ interface ConversationActions {
   ) => void;
   setCommitsAutoExpandPath: (path: string | null) => void;
   setCommitsReviewFilterPaths: (paths: string[] | null) => void;
+  setCommitsReviewTurnFiles: (
+    commitsReviewTurnFiles: CommitsReviewTurnFile[] | null,
+  ) => void;
   setShouldShownAgentLoading: (shouldShownAgentLoading: boolean) => void;
   setShouldHideSuggestions: (shouldHideSuggestions: boolean) => void;
   addImages: (images: File[]) => void;
@@ -139,6 +154,7 @@ export const useConversationStore = create<ConversationStore>()(
       commitsAutoExpandSection: null,
       commitsAutoExpandPath: null,
       commitsReviewFilterPaths: null,
+      commitsReviewTurnFiles: null,
       images: [],
       files: [],
       imagesMarkedUploadAsFile: [],
@@ -174,7 +190,10 @@ export const useConversationStore = create<ConversationStore>()(
           (state) => ({
             selectedTab,
             ...(selectedTab !== "commits"
-              ? { commitsReviewFilterPaths: null }
+              ? {
+                  commitsReviewFilterPaths: null,
+                  commitsReviewTurnFiles: null,
+                }
               : {}),
           }),
           false,
@@ -191,6 +210,13 @@ export const useConversationStore = create<ConversationStore>()(
           { commitsReviewFilterPaths },
           false,
           "setCommitsReviewFilterPaths",
+        ),
+
+      setCommitsReviewTurnFiles: (commitsReviewTurnFiles) =>
+        set(
+          { commitsReviewTurnFiles },
+          false,
+          "setCommitsReviewTurnFiles",
         ),
 
       setShouldShownAgentLoading: (shouldShownAgentLoading) =>
@@ -387,6 +413,7 @@ export const useConversationStore = create<ConversationStore>()(
             commitsAutoExpandSection: null,
             commitsAutoExpandPath: null,
             commitsReviewFilterPaths: null,
+            commitsReviewTurnFiles: null,
           },
           false,
           "resetConversationState",

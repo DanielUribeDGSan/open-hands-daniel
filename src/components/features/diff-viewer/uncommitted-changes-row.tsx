@@ -4,6 +4,7 @@ import { I18nKey } from "#/i18n/declaration";
 import { AccordionPanel } from "./accordion-panel";
 import type { DiffChangeListItem } from "./diff-change-list";
 import { DiffChangeTree } from "./diff-change-tree";
+import type { InlineFileDiff } from "./file-diff-viewer";
 
 const EMPTY_COMMIT_SHA_PLACEHOLDER = "-";
 /** Base key for i18next pluralization (`_one` / `_other` suffixes). */
@@ -14,6 +15,7 @@ export interface UncommittedChangesRowProps {
   isExpanded: boolean;
   onToggle: () => void;
   initialExpandedPath?: string | null;
+  inlineDiffs?: Record<string, InlineFileDiff>;
 }
 
 /**
@@ -26,6 +28,7 @@ export function UncommittedChangesRow({
   isExpanded,
   onToggle,
   initialExpandedPath,
+  inlineDiffs,
 }: UncommittedChangesRowProps) {
   const { t } = useTranslation("openhands");
 
@@ -74,6 +77,7 @@ export function UncommittedChangesRow({
           <DiffChangeTree
             changes={changes}
             initialSelectedPath={initialExpandedPath}
+            inlineDiffs={inlineDiffs}
           />
         ) : null}
       </AccordionPanel>

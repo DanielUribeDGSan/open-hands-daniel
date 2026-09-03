@@ -5,6 +5,7 @@ import {
   looksLikeWorkspaceFilePath,
   stripWorkspacePrefix,
   toFilesTabPath,
+  toReviewRelativePath,
 } from "#/utils/path-utils";
 
 describe("getPathBasename", () => {
@@ -80,6 +81,23 @@ describe("toFilesTabPath", () => {
         "/Users/me/ws",
       ),
     ).toBe("/Users/me/other/astro.config.mjs");
+  });
+});
+
+describe("toReviewRelativePath", () => {
+  it("returns workspace-relative paths when the root matches", () => {
+    expect(
+      toReviewRelativePath("/Users/me/ws/public/sw.js", "/Users/me/ws"),
+    ).toBe("public/sw.js");
+  });
+
+  it("collapses absolute paths outside the working dir to a short relative path", () => {
+    expect(
+      toReviewRelativePath(
+        "/Users/me/exercises/public/sw.js",
+        "/Users/me/lista-compras",
+      ),
+    ).toBe("public/sw.js");
   });
 });
 

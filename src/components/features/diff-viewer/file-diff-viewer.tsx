@@ -86,6 +86,11 @@ export interface FileDiffViewerProps {
    */
   commit?: string;
   /**
+   * When set, skip the git query and render this before/after payload
+   * (turn "Vista previa" inline diffs).
+   */
+  inlineDiff?: InlineFileDiff;
+  /**
    * Controlled accordion open state. When omitted, the row manages its own
    * expand/collapse (used by unit tests and standalone embeds).
    */
@@ -94,10 +99,16 @@ export interface FileDiffViewerProps {
   onToggle?: () => void;
 }
 
+export interface InlineFileDiff {
+  original: string;
+  modified: string;
+}
+
 export function FileDiffViewer({
   path,
   type,
   commit,
+  inlineDiff,
   isExpanded: controlledExpanded,
   onToggle,
 }: FileDiffViewerProps) {
@@ -120,6 +131,7 @@ export function FileDiffViewer({
 
   const isAdded = type === "A" || type === "U";
   const isDeleted = type === "D";
+  const hasInlineDiff = inlineDiff != null;
 
   const filePath = React.useMemo(() => {
     if (type === "R") {
@@ -130,16 +142,20 @@ export function FileDiffViewer({
   }, [path, type]);
 
   const {
-    data: diff,
+    data: gitDiff,
     isLoading,
-    isSuccess,
+    isSuccess: gitSuccess,
     isRefetching,
   } = useUnifiedGitDiff({
     filePath,
     type,
-    enabled: !isCollapsed,
+    enabled: !isCollapsed && !hasInlineDiff,
     commit,
   });
+
+  const diff = hasInlineDiff ? inlineDiff : gitDiff;
+  const isSuccess = hasInlineDiff || gitSuccess;
+  const isFetchingData = hasInlineDiff ? false : isLoading || isRefetching;
 
   const updateSingleEditorHeight = React.useCallback(() => {
     if (singleEditorRef.current) {
@@ -171,7 +187,6 @@ export function FileDiffViewer({
       React.createElement(status, { className: "w-4 h-4 shrink-0" })
     );
 
-  const isFetchingData = isLoading || isRefetching;
   const language = getLanguageFromPath(filePath);
   const isMarkdownFile = language === "markdown";
   const singleViewContent =

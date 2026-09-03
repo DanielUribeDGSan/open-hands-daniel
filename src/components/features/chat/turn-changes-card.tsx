@@ -5,11 +5,9 @@ import { FileDiff, RotateCcw, ChevronDown, ChevronUp } from "lucide-react";
 import type { OpenHandsEvent } from "#/types/agent-server/core";
 import { computeLineDiff } from "#/components/features/chat/tool-visualizers/primitives/diff-view";
 import { useConversationStore } from "#/stores/conversation-store";
-import { useFilesTabStore } from "#/stores/files-tab-store";
-import { useOptionalConversationId } from "#/hooks/use-conversation-id";
+import ConversationService from "#/api/conversation-service/conversation-service.api";
 import { useSendMessage } from "#/hooks/use-send-message";
-import { toFilesTabPath } from "#/utils/path-utils";
-import { setConversationState } from "#/utils/conversation-local-storage";
+import { toFilesTabPath, toReviewRelativePath } from "#/utils/path-utils";
 
 export interface TurnFileChange {
   path: string;
@@ -286,7 +284,6 @@ export function TurnChangesCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const { send } = useSendMessage();
-  const { conversationId } = useOptionalConversationId();
   const visibleFiles = expanded ? summary.files : summary.files.slice(0, 3);
   const hiddenCount = summary.files.length - 3;
 
@@ -295,50 +292,31 @@ export function TurnChangesCard({
     [summary.files],
   );
 
+  const displayWorkingDir =
+    ConversationService.getCurrentConversation()?.workspace?.working_dir;
+
   const openReview = (path?: string) => {
     const store = useConversationStore.getState();
-    const filesStore = useFilesTabStore.getState();
-    const targetPath = path ?? summary.files[0]?.path ?? null;
-    const targetFile =
-      summary.files.find((file) => file.path === targetPath) ??
-      summary.files[0];
+    const workingDir =
+      ConversationService.getCurrentConversation()?.workspace?.working_dir;
+    const turnFiles = summary.files.map((file) => ({
+      path: toReviewRelativePath(file.path, workingDir) || file.path,
+      before: file.before,
+      after: file.after,
+    }));
+    const targetRaw = path ?? summary.files[0]?.path ?? null;
+    const targetPath = targetRaw
+      ? toReviewRelativePath(targetRaw, workingDir) || targetRaw
+      : (turnFiles[0]?.path ?? null);
 
-    // Prefer Files with the turn's before/after — git "Sin commit" goes blank
-    // after commit/push even though the card still has the edit payload.
-    store.setSelectedTab("files");
-    store.setHasRightPanelToggled(true);
-    store.setIsRightPanelShown(true);
-    store.setCommitsReviewFilterPaths(summary.files.map((file) => file.path));
+    // Review tab with ONLY this turn's files (Codex-style tree + inline diffs).
+    store.setSelectedTab("commits");
+    store.setCommitsReviewTurnFiles(turnFiles);
+    store.setCommitsReviewFilterPaths(turnFiles.map((file) => file.path));
     store.setCommitsAutoExpandSection("uncommitted");
     store.setCommitsAutoExpandPath(targetPath);
-
-    if (conversationId) {
-      setConversationState(conversationId, {
-        filesTabTreeVisible: true,
-        filesTabOpenPaths: summary.files.map((file) => file.path),
-        filesTabSelectedPath: targetPath,
-      });
-    }
-
-    for (const file of summary.files) {
-      filesStore.setSelectedPath(file.path, conversationId);
-    }
-
-    if (targetFile) {
-      const created = targetFile.before === "" && targetFile.after !== "";
-      filesStore.focusAgentFile(
-        {
-          path: targetFile.path,
-          command: created ? "create" : "str_replace",
-          beforeContent: targetFile.before,
-          afterContent: targetFile.after,
-          oldText: targetFile.before || undefined,
-          newText: targetFile.after,
-          showTree: true,
-        },
-        conversationId,
-      );
-    }
+    store.setHasRightPanelToggled(true);
+    store.setIsRightPanelShown(true);
   };
 
   const undo = () => {
@@ -408,7 +386,8 @@ export function TurnChangesCard({
                 className="flex w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-left hover:bg-[var(--oh-interactive-hover)]"
               >
                 <span className="min-w-0 flex-1 truncate text-[var(--oh-text-secondary)]">
-                  {file.path}
+                  {toReviewRelativePath(file.path, displayWorkingDir) ||
+                    file.path}
                 </span>
                 <span className="shrink-0 font-mono text-xs">
                   <span className="text-status-success-text">
