@@ -157,7 +157,7 @@ describe("CommitList", () => {
     const onAutoExpandHandled = vi.fn();
 
     // Act
-    render(
+    const { rerender } = render(
       <CommitList
         commits={[makeCommit()]}
         hasMore={false}
@@ -172,7 +172,46 @@ describe("CommitList", () => {
       screen.getByTestId("uncommitted-changes-row-toggle"),
     ).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("src/a.ts")).toBeInTheDocument();
-    expect(onAutoExpandHandled).toHaveBeenCalled();
+    expect(onAutoExpandHandled).toHaveBeenCalledTimes(1);
+
+    // Parent flipped the one-shot off — must not keep calling (React #185).
+    rerender(
+      <CommitList
+        commits={[makeCommit()]}
+        hasMore={false}
+        uncommittedChanges={[{ path: "src/a.ts", status: "M" }]}
+        autoExpandUncommitted={false}
+        onAutoExpandHandled={onAutoExpandHandled}
+      />,
+    );
+    expect(onAutoExpandHandled).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not loop when autoExpand stays true with a fresh empty commits array", () => {
+    const onAutoExpandHandled = vi.fn();
+    const { rerender } = render(
+      <CommitList
+        commits={[]}
+        hasMore={false}
+        uncommittedChanges={[{ path: "a.ts", status: "M" }]}
+        autoExpandUncommitted
+        onAutoExpandHandled={onAutoExpandHandled}
+      />,
+    );
+    expect(onAutoExpandHandled).toHaveBeenCalledTimes(1);
+
+    // Simulate parent re-render that allocates a new [] while still expanded
+    // via turnPreview (the production #185 case before the one-shot fix).
+    rerender(
+      <CommitList
+        commits={[]}
+        hasMore={false}
+        uncommittedChanges={[{ path: "a.ts", status: "M" }]}
+        autoExpandUncommitted={false}
+        onAutoExpandHandled={onAutoExpandHandled}
+      />,
+    );
+    expect(onAutoExpandHandled).toHaveBeenCalledTimes(1);
   });
 
   it("still renders Uncommitted when there are no working-tree changes", () => {

@@ -38,6 +38,7 @@ export function CommitList({
 }: CommitListProps) {
   const { t } = useTranslation("openhands");
   const [expandedKey, setExpandedKey] = React.useState<string | null>(null);
+  const newestCommitSha = commits[0]?.sha ?? null;
 
   React.useEffect(() => {
     if (!autoExpandUncommitted) return;
@@ -45,17 +46,21 @@ export function CommitList({
     // commit so Review still shows a file tree + diffs for the turn.
     if (uncommittedChanges.length > 0) {
       setExpandedKey(UNCOMMITTED_KEY);
-    } else if (commits[0]?.sha) {
-      setExpandedKey(commits[0].sha);
+    } else if (newestCommitSha) {
+      setExpandedKey(newestCommitSha);
     } else {
       setExpandedKey(UNCOMMITTED_KEY);
     }
+    // Parent must flip autoExpandUncommitted off here (e.g. clear the
+    // one-shot store flag). Leaving it true re-fires this effect forever
+    // (React #185 / max update depth) — especially when `commits` is a
+    // freshly allocated `[]` each render in turn-preview mode.
     onAutoExpandHandled?.();
   }, [
     autoExpandUncommitted,
     onAutoExpandHandled,
     uncommittedChanges.length,
-    commits,
+    newestCommitSha,
   ]);
 
   // Author is noise when every commit has the same one (the usual

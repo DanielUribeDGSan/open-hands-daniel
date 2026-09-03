@@ -491,34 +491,70 @@ export function ChatInterface() {
   const isChatLoading = isHistoryLoading && !isTask;
 
   // Force scroll to the latest message when entering / switching chats.
-  // `autoScroll` can be false if the previous chat was scrolled mid-way, and
-  // history load can leave the viewport stranded until the user clicks ↓.
+  // History can paint in waves (skeleton → events → cards), and layout
+  // shifts can look like "scroll up" and disable autoscroll mid-load —
+  // leaving the viewport stranded in the middle until the user clicks ↓.
   const scrolledToBottomForConversationRef = React.useRef<string | null>(null);
+  const lockAutoscrollUntilRef = React.useRef(0);
+
   React.useEffect(() => {
     scrolledToBottomForConversationRef.current = null;
+    lockAutoscrollUntilRef.current = Date.now() + 1000;
     setAutoScroll(true);
   }, [conversationId, setAutoScroll]);
+
+  const onChatBodyScrollGuarded = React.useCallback(
+    (element: HTMLElement) => {
+      if (Date.now() < lockAutoscrollUntilRef.current) {
+        // During the enter-chat lock, keep following the bottom even if
+        // content growth briefly moves scrollTop upward.
+        setAutoScroll(true);
+        setHitBottom(true);
+        return;
+      }
+      onChatBodyScroll(element);
+    },
+    [onChatBodyScroll, setAutoScroll, setHitBottom],
+  );
 
   React.useEffect(() => {
     if (!conversationId || !eventsBelongToChat || isChatLoading) {
       return;
     }
-    if (scrolledToBottomForConversationRef.current === conversationId) {
+
+    const locked = Date.now() < lockAutoscrollUntilRef.current;
+    const stillPinning =
+      scrolledToBottomForConversationRef.current !== conversationId || locked;
+
+    if (!stillPinning && !autoScroll) {
       return;
     }
+
     scrolledToBottomForConversationRef.current = conversationId;
-    setAutoScroll(true);
+    if (locked || stillPinning) {
+      setAutoScroll(true);
+    }
     scrollDomToBottom();
-    // Content may still grow after history paint (images, cards); nudge again.
-    const timeoutId = window.setTimeout(() => {
-      scrollDomToBottom();
-    }, 120);
-    return () => window.clearTimeout(timeoutId);
+
+    const timeouts = [80, 250, 600].map((ms) =>
+      window.setTimeout(() => {
+        if (Date.now() < lockAutoscrollUntilRef.current) {
+          scrollDomToBottom();
+        }
+      }, ms),
+    );
+
+    return () => {
+      for (const timeoutId of timeouts) {
+        window.clearTimeout(timeoutId);
+      }
+    };
   }, [
     conversationId,
     eventsBelongToChat,
     isChatLoading,
     renderableEvents.length,
+    autoScroll,
     scrollDomToBottom,
     setAutoScroll,
   ]);
@@ -684,7 +720,7 @@ export function ChatInterface() {
     scrollDomToBottom,
     hitBottom,
     setHitBottom,
-    onChatBodyScroll,
+    onChatBodyScroll: onChatBodyScrollGuarded,
   };
 
   // Get server status indicator props
@@ -742,7 +778,7 @@ export function ChatInterface() {
             ref={scrollRef}
             data-testid="chat-scroll-container"
             onScroll={(e) => {
-              onChatBodyScroll(e.currentTarget);
+              onChatBodyScrollGuarded(e.currentTarget);
               maybeLoadOlder(e.currentTarget);
             }}
             onWheel={handleWheelForPagination}

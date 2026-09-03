@@ -15,6 +15,9 @@ import { RuntimeWaitingState } from "#/components/features/conversation-panel/ru
 import { ConversationTabEmptyState } from "#/components/features/conversation/conversation-tab-empty-state";
 import { useConversationStore } from "#/stores/conversation-store";
 import type { GitChangeStatus } from "#/api/open-hands.types";
+import type { GitCommit } from "#/api/open-hands.types";
+
+const EMPTY_COMMITS: GitCommit[] = [];
 
 function pathMatchesFilter(changePath: string, wanted: Set<string>): boolean {
   if (wanted.has(changePath)) return true;
@@ -129,6 +132,10 @@ function GitCommits() {
   const isListLoading =
     !turnPreview && (isLoading || (runtimeIsActive && uncommittedLoading));
 
+  // One-shot only: turnPreview must NOT keep this true or CommitList's
+  // auto-expand effect loops (React error #185 in production builds).
+  const autoExpandUncommitted = commitsAutoExpandSection === "uncommitted";
+
   return (
     <main className="h-full w-full flex flex-col items-stretch">
       {/* eslint-disable-next-line i18next/no-literal-string -- match turn card Spanish UI */}
@@ -159,13 +166,11 @@ function GitCommits() {
               expanded commit. */}
           <CommitList
             key={conversationId}
-            commits={hasCommits ? commits : []}
+            commits={hasCommits ? commits : EMPTY_COMMITS}
             hasMore={hasCommits ? hasMore : false}
             uncommittedChanges={filteredUncommitted}
             inlineDiffs={inlineDiffs}
-            autoExpandUncommitted={
-              turnPreview || commitsAutoExpandSection === "uncommitted"
-            }
+            autoExpandUncommitted={autoExpandUncommitted}
             onAutoExpandHandled={handleAutoExpandHandled}
             initialExpandedPath={commitsAutoExpandPath}
           />
