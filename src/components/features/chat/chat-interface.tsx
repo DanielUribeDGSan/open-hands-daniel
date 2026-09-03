@@ -205,86 +205,7 @@ export function ChatInterface() {
   // events and sticky-cache them under the new conversation id.
   const eventsBelongToChat =
     !!conversationId && loadedConversationId === conversationId;
-  const turnChangeSummaries = React.useMemo(() => {
-    if (!eventsBelongToChat) {
-      return {
-        completed: new Map<string, TurnChangeSummary>(),
-        live: null as TurnChangeSummary | null,
-      };
-    }
-    return collectTurnChangeSummaries(
-      allConversationEvents,
-      activeConversation?.workspace?.working_dir ?? undefined,
-    );
-  }, [
-    activeConversation?.workspace?.working_dir,
-    allConversationEvents,
-    eventsBelongToChat,
-  ]);
-  const latestCompletedChangeSummary = React.useMemo(
-    () => [...turnChangeSummaries.completed.values()].at(-1) ?? null,
-    [turnChangeSummaries.completed],
-  );
   const isAgentActivelyRunning = curAgentState === AgentState.RUNNING;
-  const computedTurnChangeSummary =
-    turnChangeSummaries.live ?? latestCompletedChangeSummary;
-  const hasFileEditEvents = React.useMemo(
-    () =>
-      eventsBelongToChat &&
-      allConversationEvents.some((event) =>
-        eventLooksLikeFileEdit(
-          event as {
-            kind?: string;
-            tool_kind?: string | null;
-            action?: { kind?: string; command?: string };
-            observation?: { kind?: string; command?: string };
-          },
-        ),
-      ),
-    [allConversationEvents, eventsBelongToChat],
-  );
-  const [, bumpSticky] = React.useState(0);
-  React.useEffect(() => {
-    if (!conversationId || !eventsBelongToChat) {
-      return;
-    }
-    if (computedTurnChangeSummary) {
-      turnChangeStickyByConversation.set(
-        conversationId,
-        computedTurnChangeSummary,
-      );
-      writeStickyStore(turnChangeStickyByConversation);
-      bumpSticky((value) => value + 1);
-      return;
-    }
-    // This chat's events are loaded and contain no file edits — drop any
-    // sticky left over from a race with another conversation.
-    if (!isAgentActivelyRunning && !hasFileEditEvents) {
-      if (turnChangeStickyByConversation.delete(conversationId)) {
-        writeStickyStore(turnChangeStickyByConversation);
-        bumpSticky((value) => value + 1);
-      }
-    }
-  }, [
-    computedTurnChangeSummary,
-    conversationId,
-    eventsBelongToChat,
-    hasFileEditEvents,
-    isAgentActivelyRunning,
-  ]);
-  const stickyTurnChangeSummary =
-    conversationId && eventsBelongToChat
-      ? (turnChangeStickyByConversation.get(conversationId) ?? null)
-      : null;
-  const liveTurnChangeSummary =
-    turnChangeSummaries.live ??
-    (isAgentActivelyRunning ? stickyTurnChangeSummary : null);
-  // Prefer live/computed; sticky only when this chat still has edit events
-  // (payload may have been condensed away).
-  const finalTurnChangeSummary = eventsBelongToChat
-    ? (computedTurnChangeSummary ??
-      (hasFileEditEvents ? stickyTurnChangeSummary : null))
-    : null;
   const isArchivedConversation = useIsArchivedConversation();
 
   // Block sending in a resumed conversation that has no usable LLM, and show
@@ -431,6 +352,114 @@ export function ChatInterface() {
     [pendingMessages, conversationId],
   );
 
+  // Turn-change cards must only reflect the CURRENT user turn. Without FinishAction
+  // (common with kimi/ACP), "live" still holds the previous turn's edits until the
+  // next user event lands — and while a send is still pending that event isn't in
+  // the store yet. A synthetic boundary closes that race. Never fall back to sticky
+  // for the "Modificando" chip (that was resurfacing the previous turn).
+  const turnChangeSummaries = React.useMemo(() => {
+    if (!eventsBelongToChat) {
+      return {
+        completed: new Map<string, TurnChangeSummary>(),
+        live: null as TurnChangeSummary | null,
+      };
+    }
+    const eventsForTurn =
+      hasPendingUserMessages
+        ? [
+            ...allConversationEvents,
+            {
+              id: `pending-turn-boundary-${conversationId}`,
+              timestamp: new Date().toISOString(),
+              source: "user",
+              llm_message: { role: "user", content: [] },
+              activated_skills: [],
+              extended_content: [],
+            } as (typeof allConversationEvents)[number],
+          ]
+        : allConversationEvents;
+    return collectTurnChangeSummaries(
+      eventsForTurn,
+      activeConversation?.workspace?.working_dir ?? undefined,
+    );
+  }, [
+    activeConversation?.workspace?.working_dir,
+    allConversationEvents,
+    conversationId,
+    eventsBelongToChat,
+    hasPendingUserMessages,
+  ]);
+  const latestCompletedChangeSummary = React.useMemo(
+    () => [...turnChangeSummaries.completed.values()].at(-1) ?? null,
+    [turnChangeSummaries.completed],
+  );
+  const hasFileEditEvents = React.useMemo(
+    () =>
+      eventsBelongToChat &&
+      allConversationEvents.some((event) =>
+        eventLooksLikeFileEdit(
+          event as {
+            kind?: string;
+            tool_kind?: string | null;
+            action?: { kind?: string; command?: string };
+            observation?: { kind?: string; command?: string };
+          },
+        ),
+      ),
+    [allConversationEvents, eventsBelongToChat],
+  );
+  const [, bumpSticky] = React.useState(0);
+  React.useEffect(() => {
+    if (!conversationId || !eventsBelongToChat) {
+      return;
+    }
+    // Persist only current-turn live edits, or the idle completed snapshot.
+    // Do not rewrite sticky from "latest completed" while a new turn is live
+    // with zero edits yet — that kept resurfacing the previous request.
+    if (turnChangeSummaries.live) {
+      turnChangeStickyByConversation.set(
+        conversationId,
+        turnChangeSummaries.live,
+      );
+      writeStickyStore(turnChangeStickyByConversation);
+      bumpSticky((value) => value + 1);
+      return;
+    }
+    if (!isAgentActivelyRunning && latestCompletedChangeSummary) {
+      turnChangeStickyByConversation.set(
+        conversationId,
+        latestCompletedChangeSummary,
+      );
+      writeStickyStore(turnChangeStickyByConversation);
+      bumpSticky((value) => value + 1);
+      return;
+    }
+    if (!isAgentActivelyRunning && !hasFileEditEvents) {
+      if (turnChangeStickyByConversation.delete(conversationId)) {
+        writeStickyStore(turnChangeStickyByConversation);
+        bumpSticky((value) => value + 1);
+      }
+    }
+  }, [
+    conversationId,
+    eventsBelongToChat,
+    hasFileEditEvents,
+    isAgentActivelyRunning,
+    latestCompletedChangeSummary,
+    turnChangeSummaries.live,
+  ]);
+  const stickyTurnChangeSummary =
+    conversationId && eventsBelongToChat
+      ? (turnChangeStickyByConversation.get(conversationId) ?? null)
+      : null;
+  // Live "Modificando" chip: only edits from the open turn — never sticky.
+  const liveTurnChangeSummary = turnChangeSummaries.live;
+  const finalTurnChangeSummary = eventsBelongToChat
+    ? (turnChangeSummaries.live ??
+      latestCompletedChangeSummary ??
+      (hasFileEditEvents ? stickyTurnChangeSummary : null))
+    : null;
+
   const hasModelEntries = useModelStore((s) =>
     conversationId
       ? (s.entriesByConversation[conversationId]?.length ?? 0) > 0
@@ -460,6 +489,39 @@ export function ChatInterface() {
   // If events exist (e.g., remount after data was already fetched), skip skeleton.
   const isHistoryLoading = !showConversationMessages;
   const isChatLoading = isHistoryLoading && !isTask;
+
+  // Force scroll to the latest message when entering / switching chats.
+  // `autoScroll` can be false if the previous chat was scrolled mid-way, and
+  // history load can leave the viewport stranded until the user clicks ↓.
+  const scrolledToBottomForConversationRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    scrolledToBottomForConversationRef.current = null;
+    setAutoScroll(true);
+  }, [conversationId, setAutoScroll]);
+
+  React.useEffect(() => {
+    if (!conversationId || !eventsBelongToChat || isChatLoading) {
+      return;
+    }
+    if (scrolledToBottomForConversationRef.current === conversationId) {
+      return;
+    }
+    scrolledToBottomForConversationRef.current = conversationId;
+    setAutoScroll(true);
+    scrollDomToBottom();
+    // Content may still grow after history paint (images, cards); nudge again.
+    const timeoutId = window.setTimeout(() => {
+      scrollDomToBottom();
+    }, 120);
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    conversationId,
+    eventsBelongToChat,
+    isChatLoading,
+    renderableEvents.length,
+    scrollDomToBottom,
+    setAutoScroll,
+  ]);
 
   const handleSendMessage = async (
     content: string,

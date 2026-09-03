@@ -2,7 +2,8 @@ import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { I18nKey } from "#/i18n/declaration";
 import { AccordionPanel } from "./accordion-panel";
-import { DiffChangeList, type DiffChangeListItem } from "./diff-change-list";
+import type { DiffChangeListItem } from "./diff-change-list";
+import { DiffChangeTree } from "./diff-change-tree";
 
 const EMPTY_COMMIT_SHA_PLACEHOLDER = "-";
 /** Base key for i18next pluralization (`_one` / `_other` suffixes). */
@@ -67,12 +68,12 @@ export function UncommittedChangesRow({
       <AccordionPanel
         open={isExpanded}
         testId="uncommitted-changes-row-content"
-        className="w-full flex flex-col pl-6"
+        className="w-full flex flex-col"
       >
         {changes.length > 0 ? (
-          <DiffChangeList
+          <DiffChangeTree
             changes={changes}
-            initialExpandedPath={initialExpandedPath}
+            initialSelectedPath={initialExpandedPath}
           />
         ) : null}
       </AccordionPanel>

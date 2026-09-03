@@ -52,11 +52,16 @@ export function useScrollToBottom(scrollRef: RefObject<HTMLDivElement | null>) {
   const scrollDomToBottom = useCallback(() => {
     const dom = scrollRef.current;
     if (dom) {
-      requestAnimationFrame(() => {
-        setAutoscroll(true);
-        setHitBottom(true);
-
+      setAutoscroll(true);
+      setHitBottom(true);
+      const apply = () => {
         dom.scrollTop = dom.scrollHeight;
+      };
+      // Double rAF: first after React commit, second after layout/paint so
+      // newly mounted messages (or conversation switch) have their full height.
+      requestAnimationFrame(() => {
+        apply();
+        requestAnimationFrame(apply);
       });
     }
   }, [scrollRef]);

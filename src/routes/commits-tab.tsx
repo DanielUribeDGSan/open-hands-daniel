@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { CommitList } from "#/components/features/diff-viewer/commit-list";
 import { DiffDrawerIcon } from "#/components/features/diff-viewer/diff-drawer-icon";
@@ -37,6 +37,9 @@ function GitCommits() {
   const commitsAutoExpandPath = useConversationStore(
     (state) => state.commitsAutoExpandPath,
   );
+  const commitsReviewFilterPaths = useConversationStore(
+    (state) => state.commitsReviewFilterPaths,
+  );
   const handleAutoExpandHandled = useCallback(() => {
     setCommitsAutoExpandSection(null);
   }, [setCommitsAutoExpandSection]);
@@ -44,9 +47,19 @@ function GitCommits() {
   const { curAgentState } = useAgentState();
   const runtimeIsActive = !RUNTIME_INACTIVE_STATES.includes(curAgentState);
 
+  const filteredUncommitted = useMemo(() => {
+    const all = uncommittedSuccess ? (uncommittedChanges ?? []) : [];
+    if (!commitsReviewFilterPaths?.length) {
+      return all.slice(0, 100);
+    }
+    const wanted = new Set(commitsReviewFilterPaths);
+    const matched = all.filter((change) => wanted.has(change.path));
+    // If git paths don't align with turn event paths, fall back to all.
+    return (matched.length > 0 ? matched : all).slice(0, 100);
+  }, [commitsReviewFilterPaths, uncommittedChanges, uncommittedSuccess]);
+
   const hasCommits = isSuccess && !isUnsupported && commits.length > 0;
-  const hasUncommitted =
-    uncommittedSuccess && (uncommittedChanges?.length ?? 0) > 0;
+  const hasUncommitted = filteredUncommitted.length > 0;
   const showList = hasCommits || hasUncommitted;
   const isListLoading = isLoading || (runtimeIsActive && uncommittedLoading);
 
@@ -60,9 +73,7 @@ function GitCommits() {
             key={conversationId}
             commits={hasCommits ? commits : []}
             hasMore={hasCommits ? hasMore : false}
-            uncommittedChanges={
-              uncommittedSuccess ? (uncommittedChanges ?? []).slice(0, 100) : []
-            }
+            uncommittedChanges={filteredUncommitted}
             autoExpandUncommitted={commitsAutoExpandSection === "uncommitted"}
             onAutoExpandHandled={handleAutoExpandHandled}
             initialExpandedPath={commitsAutoExpandPath}

@@ -30,6 +30,11 @@ interface ConversationState {
   selectedTab: ConversationTab | null;
   commitsAutoExpandSection: CommitsPaneSection | null;
   commitsAutoExpandPath: string | null;
+  /**
+   * When opening Review from a turn "Vista previa" card, only show these
+   * working-tree paths (Codex "Last Turn" style). Null = show all.
+   */
+  commitsReviewFilterPaths: string[] | null;
   images: File[];
   files: File[];
   /** Image file names (e.g. pasted screenshots) to send via file upload instead of vision embed. */
@@ -59,6 +64,7 @@ interface ConversationActions {
     commitsAutoExpandSection: CommitsPaneSection | null,
   ) => void;
   setCommitsAutoExpandPath: (path: string | null) => void;
+  setCommitsReviewFilterPaths: (paths: string[] | null) => void;
   setShouldShownAgentLoading: (shouldShownAgentLoading: boolean) => void;
   setShouldHideSuggestions: (shouldHideSuggestions: boolean) => void;
   addImages: (images: File[]) => void;
@@ -132,6 +138,7 @@ export const useConversationStore = create<ConversationStore>()(
       selectedTab: "files" as ConversationTab,
       commitsAutoExpandSection: null,
       commitsAutoExpandPath: null,
+      commitsReviewFilterPaths: null,
       images: [],
       files: [],
       imagesMarkedUploadAsFile: [],
@@ -163,12 +170,28 @@ export const useConversationStore = create<ConversationStore>()(
         set({ isOverviewPanelPeeked }, false, "setIsOverviewPanelPeeked"),
 
       setSelectedTab: (selectedTab) =>
-        set({ selectedTab }, false, "setSelectedTab"),
+        set(
+          (state) => ({
+            selectedTab,
+            ...(selectedTab !== "commits"
+              ? { commitsReviewFilterPaths: null }
+              : {}),
+          }),
+          false,
+          "setSelectedTab",
+        ),
 
       setCommitsAutoExpandSection: (commitsAutoExpandSection) =>
         set({ commitsAutoExpandSection }, false, "setCommitsAutoExpandSection"),
       setCommitsAutoExpandPath: (commitsAutoExpandPath) =>
         set({ commitsAutoExpandPath }, false, "setCommitsAutoExpandPath"),
+
+      setCommitsReviewFilterPaths: (commitsReviewFilterPaths) =>
+        set(
+          { commitsReviewFilterPaths },
+          false,
+          "setCommitsReviewFilterPaths",
+        ),
 
       setShouldShownAgentLoading: (shouldShownAgentLoading) =>
         set({ shouldShownAgentLoading }, false, "setShouldShownAgentLoading"),
@@ -363,6 +386,7 @@ export const useConversationStore = create<ConversationStore>()(
             planContent: null,
             commitsAutoExpandSection: null,
             commitsAutoExpandPath: null,
+            commitsReviewFilterPaths: null,
           },
           false,
           "resetConversationState",

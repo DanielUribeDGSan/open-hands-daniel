@@ -174,7 +174,14 @@ export function collectTurnChangeSummaries(
     // Do NOT finalize on assistant MessageEvents — those often arrive before
     // / between tool calls and were wiping the live accumulator early, which
     // is why the final Codex-style card never appeared.
-    if (rawEvent.llm_message?.role === "user") {
+    // ACP / kimi sometimes only set `source: "user"` without llm_message.role.
+    const isUserTurnBoundary =
+      rawEvent.llm_message?.role === "user" ||
+      (rawEvent.source === "user" &&
+        !rawEvent.action &&
+        !rawEvent.observation &&
+        rawEvent.kind !== "ACPToolCallEvent");
+    if (isUserTurnBoundary) {
       archiveCurrentTurn(completed, files, String(event.id));
       files = new Map();
     }
@@ -285,6 +292,7 @@ export function TurnChangesCard({
   const openReview = (path?: string) => {
     const store = useConversationStore.getState();
     store.setSelectedTab("commits");
+    store.setCommitsReviewFilterPaths(summary.files.map((file) => file.path));
     store.setCommitsAutoExpandSection("uncommitted");
     store.setCommitsAutoExpandPath(path ?? null);
     store.setHasRightPanelToggled(true);

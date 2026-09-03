@@ -43,6 +43,20 @@ vi.mock("#/components/features/diff-viewer/diff-change-list", () => ({
   ),
 }));
 
+vi.mock("#/components/features/diff-viewer/diff-change-tree", () => ({
+  DiffChangeTree: ({
+    changes,
+  }: {
+    changes: Array<{ path: string; status: string }>;
+  }) => (
+    <div data-testid="diff-change-tree">
+      {changes.map((change) => (
+        <div key={change.path}>{change.path}</div>
+      ))}
+    </div>
+  ),
+}));
+
 const makeCommit = (overrides: Partial<GitCommit> = {}): GitCommit => ({
   sha: "a".repeat(40),
   shortSha: "aaaaaaa",

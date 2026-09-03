@@ -137,6 +137,38 @@ describe("collectTurnChangeSummaries", () => {
     });
   });
 
+  it("archives on source=user even without llm_message.role", () => {
+    const events = [
+      event({
+        id: "acp-edit-1",
+        timestamp: "2026-01-01T00:00:00Z",
+        source: "agent",
+        kind: "ACPToolCallEvent",
+        tool_call_id: "call-1",
+        title: "Edit src/Old.tsx",
+        status: "completed",
+        tool_kind: "edit",
+        raw_input: { path: "src/Old.tsx", content: "old\n" },
+        raw_output: null,
+        content: null,
+        is_error: false,
+      }),
+      event({
+        id: "user-2",
+        timestamp: "2026-01-01T00:00:01Z",
+        source: "user",
+        activated_skills: [],
+        extended_content: [],
+      }),
+    ];
+
+    const nextTurn = collectTurnChangeSummaries(events);
+    expect(nextTurn.live).toBeNull();
+    expect(nextTurn.completed.get("user-2")).toMatchObject({
+      files: [{ path: "src/Old.tsx" }],
+    });
+  });
+
   it("reconstructs summaries from ACP edit tool calls (kimi / Claude / Codex)", () => {
     const events = [
       event({
