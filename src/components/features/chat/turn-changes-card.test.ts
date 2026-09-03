@@ -110,7 +110,13 @@ describe("collectTurnChangeSummaries", () => {
       deletions: 1,
       files: [{ path: "app.ts" }],
     });
-    expect(midTurn.completed.size).toBe(0);
+    // Live tail is also mirrored into completed so the idle card still has
+    // data when the agent stops without FinishAction.
+    expect(midTurn.completed.get("assistant-1")).toMatchObject({
+      additions: 2,
+      deletions: 1,
+      files: [{ path: "app.ts" }],
+    });
 
     events.push(
       event({
@@ -129,5 +135,63 @@ describe("collectTurnChangeSummaries", () => {
       deletions: 1,
       files: [{ path: "app.ts" }],
     });
+  });
+
+  it("reconstructs summaries from ACP edit tool calls (kimi / Claude / Codex)", () => {
+    const events = [
+      event({
+        id: "user-1",
+        timestamp: "2026-01-01T00:00:00Z",
+        source: "user",
+        llm_message: { role: "user", content: [] },
+        activated_skills: [],
+        extended_content: [],
+      }),
+      event({
+        id: "acp-edit-1",
+        timestamp: "2026-01-01T00:00:01Z",
+        source: "agent",
+        kind: "ACPToolCallEvent",
+        tool_call_id: "call-1",
+        title: "Edit src/App.tsx",
+        status: "completed",
+        tool_kind: "edit",
+        raw_input: {
+          path: "/workspace/project/src/App.tsx",
+          old_string: "const x = 1;\n",
+          new_string: "const x = 2;\nconst y = 3;\n",
+        },
+        raw_output: null,
+        content: null,
+        is_error: false,
+      }),
+      event({
+        id: "acp-edit-2",
+        timestamp: "2026-01-01T00:00:02Z",
+        source: "agent",
+        kind: "ACPToolCallEvent",
+        tool_call_id: "call-2",
+        title: "Write src/new.ts",
+        status: "completed",
+        tool_kind: "edit",
+        raw_input: {
+          path: "src/new.ts",
+          content: "export const a = 1;\n",
+        },
+        raw_output: null,
+        content: null,
+        is_error: false,
+      }),
+    ];
+
+    const result = collectTurnChangeSummaries(events, "/workspace/project");
+    expect(result.live).toMatchObject({
+      files: expect.arrayContaining([
+        expect.objectContaining({ path: "src/App.tsx" }),
+        expect.objectContaining({ path: "src/new.ts" }),
+      ]),
+    });
+    expect(result.live?.files).toHaveLength(2);
+    expect(result.completed.get("acp-edit-2")).toEqual(result.live);
   });
 });

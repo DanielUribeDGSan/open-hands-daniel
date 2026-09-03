@@ -53,10 +53,79 @@ import { useOptionalConversationId } from "#/hooks/use-conversation-id";
 import { useActiveConversation } from "#/hooks/query/use-active-conversation";
 import { I18nKey } from "#/i18n/declaration";
 import { hasConversationStarted } from "./components/resolve-picker-kind";
+import { useEventStore } from "#/stores/use-event-store";
 import {
   collectTurnChangeSummaries,
   TurnChangesCard,
+  type TurnChangeSummary,
 } from "./turn-changes-card";
+
+const TURN_CHANGE_STICKY_STORAGE_KEY = "openhands-turn-change-sticky-v2";
+
+function readStickyStore(): Map<string, TurnChangeSummary> {
+  if (typeof window === "undefined") return new Map();
+  try {
+    const raw = window.localStorage.getItem(TURN_CHANGE_STICKY_STORAGE_KEY);
+    if (!raw) return new Map();
+    const parsed = JSON.parse(raw) as Record<string, TurnChangeSummary>;
+    return new Map(Object.entries(parsed));
+  } catch {
+    return new Map();
+  }
+}
+
+function writeStickyStore(store: Map<string, TurnChangeSummary>) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      TURN_CHANGE_STICKY_STORAGE_KEY,
+      JSON.stringify(Object.fromEntries(store)),
+    );
+  } catch {
+    // Quota / private mode — ignore; in-memory sticky still works.
+  }
+}
+
+function eventLooksLikeFileEdit(event: {
+  kind?: string;
+  tool_kind?: string | null;
+  action?: { kind?: string; command?: string };
+  observation?: { kind?: string; command?: string };
+}): boolean {
+  if (event.kind === "ACPToolCallEvent" && event.tool_kind === "edit") {
+    return true;
+  }
+  const actionKind = event.action?.kind ?? "";
+  if (
+    ["FileEditorAction", "StrReplaceEditorAction", "PlanningFileEditorAction"].includes(
+      actionKind,
+    ) &&
+    event.action?.command &&
+    event.action.command !== "view"
+  ) {
+    return true;
+  }
+  const obsKind = event.observation?.kind ?? "";
+  return (
+    [
+      "FileEditorObservation",
+      "StrReplaceEditorObservation",
+      "PlanningFileEditorObservation",
+    ].includes(obsKind) && event.observation?.command !== "view"
+  );
+}
+
+/** Survives remounts within the SAME conversation when event payloads drop. */
+const turnChangeStickyByConversation = readStickyStore();
+
+// Drop the v1 sticky cache — it polluted new chats with sibling-folder edits.
+if (typeof window !== "undefined") {
+  try {
+    window.localStorage.removeItem("openhands-turn-change-sticky-v1");
+  } catch {
+    // ignore
+  }
+}
 
 function getEntryPoint(
   hasRepository: boolean | null,
@@ -127,26 +196,95 @@ export function ChatInterface() {
   // always null, so this is effectively a no-op for non-cloud use.
   const { data: activeConversation } = useActiveConversation();
   const sandboxStatus = activeConversation?.sandbox_status ?? null;
-  const turnChangeSummaries = React.useMemo(
-    () =>
-      collectTurnChangeSummaries(
-        allConversationEvents,
-        activeConversation?.workspace?.working_dir ?? undefined,
-      ),
-    [activeConversation?.workspace?.working_dir, allConversationEvents],
+  const { conversationId } = useOptionalConversationId();
+  const loadedConversationId = useEventStore(
+    (state) => state.loadedConversationId,
   );
+  // Event store is global — never trust summaries until the loaded id matches
+  // the route. Otherwise a new chat can briefly inherit the previous chat's
+  // events and sticky-cache them under the new conversation id.
+  const eventsBelongToChat =
+    !!conversationId && loadedConversationId === conversationId;
+  const turnChangeSummaries = React.useMemo(() => {
+    if (!eventsBelongToChat) {
+      return {
+        completed: new Map<string, TurnChangeSummary>(),
+        live: null as TurnChangeSummary | null,
+      };
+    }
+    return collectTurnChangeSummaries(
+      allConversationEvents,
+      activeConversation?.workspace?.working_dir ?? undefined,
+    );
+  }, [
+    activeConversation?.workspace?.working_dir,
+    allConversationEvents,
+    eventsBelongToChat,
+  ]);
   const latestCompletedChangeSummary = React.useMemo(
     () => [...turnChangeSummaries.completed.values()].at(-1) ?? null,
     [turnChangeSummaries.completed],
   );
   const isAgentActivelyRunning = curAgentState === AgentState.RUNNING;
-  // Turn-scoped only — do NOT fall back to workspace-wide git overview stats.
-  // That hook fans out one diff query per dirty file and previously kept the
-  // Electron renderer pegged near 100% CPU when used from this always-mounted
-  // chat surface.
-  const liveTurnChangeSummary = turnChangeSummaries.live;
-  const finalTurnChangeSummary =
+  const computedTurnChangeSummary =
     turnChangeSummaries.live ?? latestCompletedChangeSummary;
+  const hasFileEditEvents = React.useMemo(
+    () =>
+      eventsBelongToChat &&
+      allConversationEvents.some((event) =>
+        eventLooksLikeFileEdit(
+          event as {
+            kind?: string;
+            tool_kind?: string | null;
+            action?: { kind?: string; command?: string };
+            observation?: { kind?: string; command?: string };
+          },
+        ),
+      ),
+    [allConversationEvents, eventsBelongToChat],
+  );
+  const [, bumpSticky] = React.useState(0);
+  React.useEffect(() => {
+    if (!conversationId || !eventsBelongToChat) {
+      return;
+    }
+    if (computedTurnChangeSummary) {
+      turnChangeStickyByConversation.set(
+        conversationId,
+        computedTurnChangeSummary,
+      );
+      writeStickyStore(turnChangeStickyByConversation);
+      bumpSticky((value) => value + 1);
+      return;
+    }
+    // This chat's events are loaded and contain no file edits — drop any
+    // sticky left over from a race with another conversation.
+    if (!isAgentActivelyRunning && !hasFileEditEvents) {
+      if (turnChangeStickyByConversation.delete(conversationId)) {
+        writeStickyStore(turnChangeStickyByConversation);
+        bumpSticky((value) => value + 1);
+      }
+    }
+  }, [
+    computedTurnChangeSummary,
+    conversationId,
+    eventsBelongToChat,
+    hasFileEditEvents,
+    isAgentActivelyRunning,
+  ]);
+  const stickyTurnChangeSummary =
+    conversationId && eventsBelongToChat
+      ? (turnChangeStickyByConversation.get(conversationId) ?? null)
+      : null;
+  const liveTurnChangeSummary =
+    turnChangeSummaries.live ??
+    (isAgentActivelyRunning ? stickyTurnChangeSummary : null);
+  // Prefer live/computed; sticky only when this chat still has edit events
+  // (payload may have been condensed away).
+  const finalTurnChangeSummary = eventsBelongToChat
+    ? (computedTurnChangeSummary ??
+      (hasFileEditEvents ? stickyTurnChangeSummary : null))
+    : null;
   const isArchivedConversation = useIsArchivedConversation();
 
   // Block sending in a resumed conversation that has no usable LLM, and show
@@ -194,7 +332,6 @@ export function ChatInterface() {
   ]);
 
   const { selectedRepository, replayJson } = useInitialQueryStore();
-  const { conversationId } = useOptionalConversationId();
 
   // The live goal banner renders in the scroll stream but advances via store
   // updates (in-progress goal events are filtered out of `renderableEvents`),
@@ -597,10 +734,16 @@ export function ChatInterface() {
               />
             )}
 
-            {/* Final turn card stays in the transcript once the agent stops. */}
-            {!isAgentActivelyRunning && finalTurnChangeSummary && (
-              <TurnChangesCard summary={finalTurnChangeSummary} />
-            )}
+            {/* Final card only after real transcript content — never on an empty
+                new-chat suggestions screen, and never as a fixed overlay. */}
+            {!isAgentActivelyRunning &&
+              finalTurnChangeSummary &&
+              showConversationMessages &&
+              renderableEvents.length > 0 && (
+                <div className="relative z-0 shrink-0 px-0 md:px-0">
+                  <TurnChangesCard summary={finalTurnChangeSummary} />
+                </div>
+              )}
 
             {/*
             Render the local pending-message queue independently so messages

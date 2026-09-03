@@ -49,23 +49,24 @@ const MUTATING_COMMANDS = new Set([
 function summarize(
   files: Map<string, MutableFileChange>,
 ): TurnChangeSummary | null {
+  if (files.size === 0) return null;
   const changes = [...files.values()].map(({ path, before, after }) => {
     let additions = 0;
     let deletions = 0;
+    // Path-only ACP edits (no payload) still count as a touched file.
+    if (before === "" && after === "") {
+      return { path, additions: 0, deletions: 0 };
+    }
     for (const row of computeLineDiff(before, after)) {
       if (row.type === "add") additions += 1;
       if (row.type === "del") deletions += 1;
     }
     return { path, additions, deletions };
   });
-  const changed = changes.filter(
-    ({ additions, deletions }) => additions > 0 || deletions > 0,
-  );
-  if (changed.length === 0) return null;
   return {
-    files: changed,
-    additions: changed.reduce((total, file) => total + file.additions, 0),
-    deletions: changed.reduce((total, file) => total + file.deletions, 0),
+    files: changes,
+    additions: changes.reduce((total, file) => total + file.additions, 0),
+    deletions: changes.reduce((total, file) => total + file.deletions, 0),
   };
 }
 
@@ -76,6 +77,75 @@ function archiveCurrentTurn(
 ) {
   const summary = summarize(files);
   if (summary) completed.set(eventId, summary);
+}
+
+function recordFileEdit(
+  files: Map<string, MutableFileChange>,
+  path: string,
+  before: string,
+  after: string,
+  authoritative: boolean,
+) {
+  const previous = files.get(path);
+  if (previous?.authoritative && !authoritative) {
+    return;
+  }
+  files.set(path, {
+    path,
+    before: previous?.authoritative
+      ? previous.before
+      : before || previous?.before || "",
+    after: after || previous?.after || "",
+    authoritative: Boolean(previous?.authoritative || authoritative),
+  });
+}
+
+function extractAcpEdit(
+  event: OpenHandsEvent & {
+    kind?: string;
+    tool_kind?: string | null;
+    status?: string | null;
+    is_error?: boolean;
+    title?: string;
+    raw_input?: unknown;
+  },
+  workingDir?: string,
+): { path: string; before: string; after: string } | null {
+  if (event.kind !== "ACPToolCallEvent") return null;
+  if (event.tool_kind !== "edit") return null;
+  if (event.is_error) return null;
+  // Prefer terminal events; still accept in-progress so the live card updates.
+  if (event.status === "failed") return null;
+
+  const input =
+    event.raw_input && typeof event.raw_input === "object"
+      ? (event.raw_input as Record<string, unknown>)
+      : {};
+  const rawPath = [input.path, input.file_path, input.filePath, event.title]
+    .find((value) => typeof value === "string" && value.trim().length > 0) as
+    | string
+    | undefined;
+  if (!rawPath) return null;
+
+  // Titles like "Edit src/foo.ts" — strip a leading verb if present.
+  const cleanedPath = rawPath.replace(/^(Edit|Write|Update)\s+/i, "").trim();
+  const path = toFilesTabPath(cleanedPath, workingDir);
+  if (!path) return null;
+
+  const before =
+    (typeof input.old_string === "string" && input.old_string) ||
+    (typeof input.old_str === "string" && input.old_str) ||
+    (typeof input.oldText === "string" && input.oldText) ||
+    "";
+  const after =
+    (typeof input.new_string === "string" && input.new_string) ||
+    (typeof input.new_str === "string" && input.new_str) ||
+    (typeof input.newText === "string" && input.newText) ||
+    (typeof input.content === "string" && input.content) ||
+    (typeof input.file_text === "string" && input.file_text) ||
+    "";
+
+  return { path, before, after };
 }
 
 /** Build stable summaries for completed turns plus the currently-running tail. */
@@ -92,6 +162,12 @@ export function collectTurnChangeSummaries(
       observation?: Record<string, unknown>;
       llm_message?: { role?: string };
       source?: string;
+      kind?: string;
+      tool_kind?: string | null;
+      status?: string | null;
+      is_error?: boolean;
+      title?: string;
+      raw_input?: unknown;
     };
 
     // Starting a new user turn: archive whatever the previous turn edited.
@@ -120,15 +196,13 @@ export function collectTurnChangeSummaries(
         const path = toFilesTabPath(action.path, workingDir);
         const after = action.file_text ?? action.new_str;
         if (path && after != null) {
-          const previous = files.get(path);
-          if (!previous?.authoritative) {
-            files.set(path, {
-              path,
-              before: previous?.before ?? action.old_str ?? "",
-              after,
-              authoritative: false,
-            });
-          }
+          recordFileEdit(
+            files,
+            path,
+            action.old_str ?? "",
+            after,
+            false,
+          );
         }
       }
     }
@@ -151,17 +225,21 @@ export function collectTurnChangeSummaries(
       ) {
         const path = toFilesTabPath(observation.path, workingDir);
         if (path) {
-          const previous = files.get(path);
-          files.set(path, {
+          recordFileEdit(
+            files,
             path,
-            before: previous?.authoritative
-              ? previous.before
-              : (observation.old_content ?? previous?.before ?? ""),
-            after: observation.new_content,
-            authoritative: true,
-          });
+            observation.old_content ?? "",
+            observation.new_content,
+            true,
+          );
         }
       }
+    }
+
+    // kimi / Claude Code / Codex land as ACPToolCallEvent, not FileEditor*.
+    const acpEdit = extractAcpEdit(rawEvent, workingDir);
+    if (acpEdit) {
+      recordFileEdit(files, acpEdit.path, acpEdit.before, acpEdit.after, false);
     }
 
     if (rawEvent.action?.kind === "FinishAction") {
@@ -170,7 +248,18 @@ export function collectTurnChangeSummaries(
     }
   }
 
-  return { completed, live: summarize(files) };
+  // If the agent never emitted FinishAction (common with ACP / kimi), keep the
+  // in-progress edits available as both live and a completed snapshot so the
+  // final Codex card still has data after the run stops.
+  const live = summarize(files);
+  if (live && events.length > 0) {
+    const lastId = String(events[events.length - 1]?.id ?? "live-tail");
+    if (!completed.has(lastId)) {
+      completed.set(lastId, live);
+    }
+  }
+
+  return { completed, live };
 }
 
 export function TurnChangesCard({
