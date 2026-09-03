@@ -5,13 +5,18 @@ import { FileDiff, RotateCcw, ChevronDown, ChevronUp } from "lucide-react";
 import type { OpenHandsEvent } from "#/types/agent-server/core";
 import { computeLineDiff } from "#/components/features/chat/tool-visualizers/primitives/diff-view";
 import { useConversationStore } from "#/stores/conversation-store";
+import { useFilesTabStore } from "#/stores/files-tab-store";
+import { useOptionalConversationId } from "#/hooks/use-conversation-id";
 import { useSendMessage } from "#/hooks/use-send-message";
 import { toFilesTabPath } from "#/utils/path-utils";
+import { setConversationState } from "#/utils/conversation-local-storage";
 
 export interface TurnFileChange {
   path: string;
   additions: number;
   deletions: number;
+  before: string;
+  after: string;
 }
 
 export interface TurnChangeSummary {
@@ -55,13 +60,13 @@ function summarize(
     let deletions = 0;
     // Path-only ACP edits (no payload) still count as a touched file.
     if (before === "" && after === "") {
-      return { path, additions: 0, deletions: 0 };
+      return { path, additions: 0, deletions: 0, before, after };
     }
     for (const row of computeLineDiff(before, after)) {
       if (row.type === "add") additions += 1;
       if (row.type === "del") deletions += 1;
     }
-    return { path, additions, deletions };
+    return { path, additions, deletions, before, after };
   });
   return {
     files: changes,
@@ -281,6 +286,7 @@ export function TurnChangesCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const { send } = useSendMessage();
+  const { conversationId } = useOptionalConversationId();
   const visibleFiles = expanded ? summary.files : summary.files.slice(0, 3);
   const hiddenCount = summary.files.length - 3;
 
@@ -291,12 +297,48 @@ export function TurnChangesCard({
 
   const openReview = (path?: string) => {
     const store = useConversationStore.getState();
-    store.setSelectedTab("commits");
-    store.setCommitsReviewFilterPaths(summary.files.map((file) => file.path));
-    store.setCommitsAutoExpandSection("uncommitted");
-    store.setCommitsAutoExpandPath(path ?? null);
+    const filesStore = useFilesTabStore.getState();
+    const targetPath = path ?? summary.files[0]?.path ?? null;
+    const targetFile =
+      summary.files.find((file) => file.path === targetPath) ??
+      summary.files[0];
+
+    // Prefer Files with the turn's before/after — git "Sin commit" goes blank
+    // after commit/push even though the card still has the edit payload.
+    store.setSelectedTab("files");
     store.setHasRightPanelToggled(true);
     store.setIsRightPanelShown(true);
+    store.setCommitsReviewFilterPaths(summary.files.map((file) => file.path));
+    store.setCommitsAutoExpandSection("uncommitted");
+    store.setCommitsAutoExpandPath(targetPath);
+
+    if (conversationId) {
+      setConversationState(conversationId, {
+        filesTabTreeVisible: true,
+        filesTabOpenPaths: summary.files.map((file) => file.path),
+        filesTabSelectedPath: targetPath,
+      });
+    }
+
+    for (const file of summary.files) {
+      filesStore.setSelectedPath(file.path, conversationId);
+    }
+
+    if (targetFile) {
+      const created = targetFile.before === "" && targetFile.after !== "";
+      filesStore.focusAgentFile(
+        {
+          path: targetFile.path,
+          command: created ? "create" : "str_replace",
+          beforeContent: targetFile.before,
+          afterContent: targetFile.after,
+          oldText: targetFile.before || undefined,
+          newText: targetFile.after,
+          showTree: true,
+        },
+        conversationId,
+      );
+    }
   };
 
   const undo = () => {

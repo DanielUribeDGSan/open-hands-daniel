@@ -83,6 +83,52 @@ export function FileContentViewer({
   // the currently-displayed `index.html`).
   const mutationCounter = useWorkspaceMutationCounter((state) => state.count);
 
+  // Prefer the agent's live before/after even when the workspace fileserver
+  // 404s (common with absolute agent paths or after cookie/session glitches).
+  // Otherwise "Modificando archivo" shows a Failed-to-read banner instead of
+  // the in-progress diff the user asked to preview.
+  let liveBefore = agentFocus?.beforeContent;
+  let liveAfter = agentFocus?.afterContent;
+  if (
+    query.data?.kind === "text" &&
+    query.data.text != null &&
+    agentFocus?.oldText &&
+    agentFocus.newText != null
+  ) {
+    const text = query.data.text;
+    if (text.includes(agentFocus.oldText)) {
+      liveBefore = text;
+      liveAfter = text.replace(agentFocus.oldText, agentFocus.newText);
+    } else if (agentFocus.newText && text.includes(agentFocus.newText)) {
+      liveAfter = text;
+      liveBefore = text.replace(agentFocus.newText, agentFocus.oldText);
+    }
+  }
+
+  if (
+    agentFocus?.command !== "view" &&
+    liveBefore !== undefined &&
+    liveAfter !== undefined
+  ) {
+    return (
+      <div
+        className="h-full w-full overflow-auto bg-[#181818] p-3 custom-scrollbar-always"
+        data-testid="file-content-viewer-live-diff"
+      >
+        <DiffView
+          oldText={liveBefore}
+          newText={liveAfter}
+          language={
+            getPrismLanguageForFile(
+              path,
+              query.data?.mimeType ?? undefined,
+            ) ?? undefined
+          }
+        />
+      </div>
+    );
+  }
+
   if (query.isLoading) {
     return (
       <div className="flex h-full w-full items-center justify-center text-sm text-[var(--oh-muted)]">
@@ -111,43 +157,6 @@ export function FileContentViewer({
 
   const { kind, text, staticUrl, mimeType } = query.data;
   const bustedStaticUrl = withWorkspaceCacheBuster(staticUrl, mutationCounter);
-  let liveBefore = agentFocus?.beforeContent;
-  let liveAfter = agentFocus?.afterContent;
-  if (
-    kind === "text" &&
-    text != null &&
-    agentFocus?.oldText &&
-    agentFocus.newText != null
-  ) {
-    if (text.includes(agentFocus.oldText)) {
-      liveBefore = text;
-      liveAfter = text.replace(agentFocus.oldText, agentFocus.newText);
-    } else if (agentFocus.newText && text.includes(agentFocus.newText)) {
-      liveAfter = text;
-      liveBefore = text.replace(agentFocus.newText, agentFocus.oldText);
-    }
-  }
-
-  if (
-    agentFocus?.command !== "view" &&
-    liveBefore !== undefined &&
-    liveAfter !== undefined
-  ) {
-    return (
-      <div
-        className="h-full w-full overflow-auto bg-[#181818] p-3 custom-scrollbar-always"
-        data-testid="file-content-viewer-live-diff"
-      >
-        <DiffView
-          oldText={liveBefore}
-          newText={liveAfter}
-          language={
-            getPrismLanguageForFile(path, mimeType ?? undefined) ?? undefined
-          }
-        />
-      </div>
-    );
-  }
 
   // ----- Plain mode: raw source bytes, syntax-highlighted when we can
   // recognize the grammar (falls through to a `<pre>` otherwise). This

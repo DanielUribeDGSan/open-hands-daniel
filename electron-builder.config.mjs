@@ -286,7 +286,7 @@ function getDirSizeBytes(dir) {
 /** @type {import('electron-builder').Configuration} */
 const config = {
   appId: "dev.openhands.agent-canvas",
-  productName: "OpenHands Agent Canvas",
+  productName: "Pair Bot",
   copyright: "Copyright © 2025 All Hands AI",
 
   // Stamp the packaged app with the released version (see rootPackageJson
@@ -391,7 +391,7 @@ const config = {
   },
 
   dmg: {
-    title: "OpenHands Agent Canvas",
+    title: "Pair Bot",
     contents: [
       { x: 130, y: 220 },
       { x: 410, y: 220, type: "link", path: "/Applications" },
@@ -400,7 +400,7 @@ const config = {
     // Default is "OpenHands Agent Canvas-<version>-<arch>.dmg"; GitHub release
     // assets mangle spaces, so keep the asset name literal (matches the nsis
     // convention). ${version}/${arch}/${ext} are electron-builder macros.
-    artifactName: "OpenHands-Agent-Canvas-${version}-${arch}.${ext}",
+    artifactName: "Pair-Bot-${version}-${arch}.${ext}",
   },
 
   // ── Windows ────────────────────────────────────────────────────────────────
@@ -419,8 +419,7 @@ const config = {
     createStartMenuShortcut: true,
     // The default artifact name is "OpenHands Agent Canvas Setup <version>.exe";
     // GitHub release assets mangle spaces, so ship a space-free name.
-    // ${version}/${ext} are electron-builder macros, not JS interpolation.
-    artifactName: "OpenHands-Agent-Canvas-Setup-${version}.${ext}",
+    artifactName: "Pair-Bot-Setup-${version}.${ext}",
   },
 
   // ── Linux ──────────────────────────────────────────────────────────────────

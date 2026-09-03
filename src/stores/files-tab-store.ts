@@ -47,6 +47,11 @@ export interface AgentFileFocus {
   newText?: string;
   beforeContent?: string;
   afterContent?: string;
+  /**
+   * When true, keep the Files tree visible alongside the live edit focus
+   * (e.g. turn "Vista previa"). Default agent auto-focus still hides it.
+   */
+  showTree?: boolean;
 }
 
 function withOpenedPath(

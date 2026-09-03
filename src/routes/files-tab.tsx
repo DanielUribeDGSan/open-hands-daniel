@@ -119,7 +119,7 @@ function FilesTab() {
     [clearAgentFocus, conversationId, setSelectedPath],
   );
 
-  const showTree = isTreeVisible && !agentFocus;
+  const showTree = isTreeVisible && (!agentFocus || !!agentFocus.showTree);
 
   // Pre-fetch the selected file's content here too so the toolbar's
   // "open in new window" link can reach for its `staticUrl`. react-query
@@ -163,7 +163,7 @@ function FilesTab() {
 
   const quickRowActions = (
     <div className="flex items-center gap-1">
-      {agentFocus && (
+      {agentFocus && !showTree && (
         <button
           type="button"
           onClick={() => {

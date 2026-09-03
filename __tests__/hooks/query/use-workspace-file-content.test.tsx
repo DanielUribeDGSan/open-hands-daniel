@@ -256,6 +256,7 @@ describe("useWorkspaceFileContent", () => {
       status: 404,
       arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
     });
+    downloadFileMock.mockRejectedValue(new Error("missing"));
 
     const { result } = renderHook(
       () => useWorkspaceFileContent("missing.txt"),
@@ -267,6 +268,47 @@ describe("useWorkspaceFileContent", () => {
     expect(result.current.error).toEqual(
       expect.objectContaining({
         message: "Failed to read missing.txt: 404",
+      }),
+    );
+  });
+
+  it("normalizes absolute paths and falls back to downloadFile on static 404", async () => {
+    useActiveConversationMock.mockReturnValue({
+      data: {
+        id: "conv-1",
+        conversation_url: "https://agent.example.com/api/conversations/conv-1",
+        session_api_key: "session-key",
+        workspace: { working_dir: "/Users/me/ws" },
+      },
+    });
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 404,
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+    });
+    downloadFileMock.mockResolvedValue(arrayBufferFromString("ok"));
+
+    const { result } = renderHook(
+      () => useWorkspaceFileContent("/Users/me/ws/astro.config.mjs"),
+      { wrapper: makeWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${BASE_URL}astro.config.mjs`,
+      expect.objectContaining({ credentials: "include" }),
+    );
+    expect(downloadFileMock).toHaveBeenCalledWith(
+      "https://agent.example.com/api/conversations/conv-1",
+      "session-key",
+      "/Users/me/ws/astro.config.mjs",
+    );
+    expect(result.current.data).toEqual(
+      expect.objectContaining({
+        path: "astro.config.mjs",
+        kind: "text",
+        text: "ok",
       }),
     );
   });

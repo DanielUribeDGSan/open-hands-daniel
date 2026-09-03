@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { readCloudConversationFile } from "#/api/cloud/conversation-service.api";
 import { getActiveBackend } from "#/api/backend-registry/active-store";
+import AgentServerRuntimeService from "#/api/runtime-service/agent-server-runtime-service";
 import { getGitPath } from "#/utils/get-git-path";
 import { useActiveConversation } from "#/hooks/query/use-active-conversation";
 import { useRuntimeIsReady } from "#/hooks/use-runtime-is-ready";
@@ -10,6 +11,7 @@ import {
   useWorkspaceSession,
 } from "#/hooks/query/use-workspace-session";
 import { useWorkspaceMutationCounter } from "#/stores/use-workspace-mutation-counter";
+import { toFilesTabPath } from "#/utils/path-utils";
 
 // Magic-number sniff for common binary formats we can render via iframe.
 const IMAGE_EXTENSIONS = new Set([
@@ -161,6 +163,12 @@ export function useWorkspaceFileContent(relativePath: string | null) {
   const baseUrl = workspaceSession?.baseUrl;
   const isCloud = getActiveBackend().backend.kind === "cloud";
 
+  // Agent/chat paths are often absolute; the static fileserver only accepts
+  // workspace-relative segments. Normalize before joining URLs / keys.
+  const normalizedRelativePath = relativePath
+    ? toFilesTabPath(relativePath, workingDir) || relativePath.replace(/^\.\//, "")
+    : null;
+
   // The cloud `/file` endpoint downloads via the runtime's
   // `/api/file/download`, which rejects relative paths (400 → the cloud API
   // swallows it and returns ""). Anchor the file against the working dir the
@@ -168,8 +176,10 @@ export function useWorkspaceFileContent(relativePath: string | null) {
   // then force a leading slash since `getGitPath`'s default is relative.
   const gitPath = getGitPath(selectedRepository, workingDir);
   const workspaceRoot = gitPath.startsWith("/") ? gitPath : `/${gitPath}`;
-  const absoluteFilePath = relativePath
-    ? `${workspaceRoot}/${relativePath}`
+  const absoluteFilePath = normalizedRelativePath
+    ? normalizedRelativePath.startsWith("/")
+      ? normalizedRelativePath
+      : `${workspaceRoot}/${normalizedRelativePath}`
     : null;
 
   return useQuery<WorkspaceFileContent>({
@@ -179,15 +189,15 @@ export function useWorkspaceFileContent(relativePath: string | null) {
       conversationUrl,
       sessionApiKey,
       isCloud ? "cloud" : baseUrl,
-      relativePath,
+      normalizedRelativePath,
       absoluteFilePath,
       workspaceMutationCount,
     ],
     queryFn: async () => {
-      if (!relativePath) throw new Error("No path");
+      if (!normalizedRelativePath) throw new Error("No path");
 
-      const kind = classifyKind(relativePath);
-      const mimeType = guessMimeType(relativePath);
+      const kind = classifyKind(normalizedRelativePath);
+      const mimeType = guessMimeType(normalizedRelativePath);
 
       if (isCloud) {
         // Cloud: fetch through the cloud API's first-class runtime proxy
@@ -206,7 +216,7 @@ export function useWorkspaceFileContent(relativePath: string | null) {
           const buf = new TextEncoder().encode(content);
           if (isLikelyBinary(buf.buffer)) {
             return {
-              path: relativePath,
+              path: normalizedRelativePath,
               kind: "binary",
               text: null,
               staticUrl: `data:application/octet-stream;base64,${arrayBufferToBase64(buf.buffer)}`,
@@ -214,7 +224,7 @@ export function useWorkspaceFileContent(relativePath: string | null) {
             };
           }
           return {
-            path: relativePath,
+            path: normalizedRelativePath,
             kind: "text",
             text: content,
             staticUrl: `data:${mimeType};charset=utf-8;base64,${arrayBufferToBase64(buf.buffer)}`,
@@ -228,7 +238,7 @@ export function useWorkspaceFileContent(relativePath: string | null) {
         // downloadFile route went through the removed /api/cloud-proxy).
         const buf = new TextEncoder().encode(content);
         return {
-          path: relativePath,
+          path: normalizedRelativePath,
           kind,
           text: null,
           staticUrl: `data:${mimeType};base64,${arrayBufferToBase64(buf.buffer)}`,
@@ -236,12 +246,12 @@ export function useWorkspaceFileContent(relativePath: string | null) {
         };
       }
 
-      // Local: rely on the workspace-session cookie minted by
-      // useWorkspaceSession to authenticate the same-origin static
-      // fileserver fetch.
+      // Local: prefer the workspace-session cookie + static fileserver for
+      // iframe/img embedding; fall back to session-key downloadFile when the
+      // static hop 404s (absolute paths, stale cookies, packaged desktop).
       if (!baseUrl) throw new Error("No workspace session");
 
-      const staticUrl = joinWorkspaceUrl(baseUrl, relativePath);
+      const staticUrl = joinWorkspaceUrl(baseUrl, normalizedRelativePath);
 
       // Image / PDF: don't fetch the bytes — the consumer renders them
       // directly via `staticUrl` in an iframe or <img>. The browser
@@ -251,7 +261,7 @@ export function useWorkspaceFileContent(relativePath: string | null) {
       // do anyway).
       if (kind !== "text") {
         return {
-          path: relativePath,
+          path: normalizedRelativePath,
           kind,
           text: null,
           staticUrl,
@@ -259,21 +269,35 @@ export function useWorkspaceFileContent(relativePath: string | null) {
         };
       }
 
-      // For our own fetch we also rely on the workspace-session cookie
-      // (it travels because we opt in to credentialed requests). This
-      // matches the auth path the iframe / <img> uses, and avoids a CORS
-      // preflight for a custom header.
       const response = await fetch(staticUrl, {
         credentials: "include",
       });
-      if (!response.ok) {
-        throw new Error(`Failed to read ${relativePath}: ${response.status}`);
+
+      let buffer: ArrayBuffer;
+      if (response.ok) {
+        buffer = await response.arrayBuffer();
+      } else {
+        if (!absoluteFilePath) {
+          throw new Error(
+            `Failed to read ${normalizedRelativePath}: ${response.status}`,
+          );
+        }
+        try {
+          buffer = await AgentServerRuntimeService.downloadFile(
+            conversationUrl,
+            sessionApiKey,
+            absoluteFilePath,
+          );
+        } catch {
+          throw new Error(
+            `Failed to read ${normalizedRelativePath}: ${response.status}`,
+          );
+        }
       }
 
-      const buffer = await response.arrayBuffer();
       if (isLikelyBinary(buffer)) {
         return {
-          path: relativePath,
+          path: normalizedRelativePath,
           kind: "binary",
           text: null,
           staticUrl,
@@ -283,7 +307,7 @@ export function useWorkspaceFileContent(relativePath: string | null) {
 
       const text = new TextDecoder("utf-8", { fatal: false }).decode(buffer);
       return {
-        path: relativePath,
+        path: normalizedRelativePath,
         kind: "text",
         text,
         staticUrl,

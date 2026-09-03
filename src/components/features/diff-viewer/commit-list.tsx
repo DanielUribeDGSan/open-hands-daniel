@@ -37,9 +37,22 @@ export function CommitList({
 
   React.useEffect(() => {
     if (!autoExpandUncommitted) return;
-    setExpandedKey(UNCOMMITTED_KEY);
+    // After commit/push the working tree is clean — fall back to the newest
+    // commit so Review still shows a file tree + diffs for the turn.
+    if (uncommittedChanges.length > 0) {
+      setExpandedKey(UNCOMMITTED_KEY);
+    } else if (commits[0]?.sha) {
+      setExpandedKey(commits[0].sha);
+    } else {
+      setExpandedKey(UNCOMMITTED_KEY);
+    }
     onAutoExpandHandled?.();
-  }, [autoExpandUncommitted, onAutoExpandHandled]);
+  }, [
+    autoExpandUncommitted,
+    onAutoExpandHandled,
+    uncommittedChanges.length,
+    commits,
+  ]);
 
   // Author is noise when every commit has the same one (the usual
   // single-agent conversation); show it only when authors differ.

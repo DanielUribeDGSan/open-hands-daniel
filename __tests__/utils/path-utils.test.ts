@@ -72,6 +72,15 @@ describe("toFilesTabPath", () => {
       "src/a.ts",
     );
   });
+
+  it("preserves unmatched absolute paths for downloadFile fallbacks", () => {
+    expect(
+      toFilesTabPath(
+        "/Users/me/other/astro.config.mjs",
+        "/Users/me/ws",
+      ),
+    ).toBe("/Users/me/other/astro.config.mjs");
+  });
 });
 
 describe("looksLikeWorkspaceFilePath", () => {
