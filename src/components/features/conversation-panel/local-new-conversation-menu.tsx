@@ -14,6 +14,7 @@ import { useLocalWorkspaces } from "#/hooks/query/use-local-workspaces";
 import { useResolvedWorkspaces } from "#/hooks/query/use-resolved-workspaces";
 import { I18nKey } from "#/i18n/declaration";
 import { cn } from "#/utils/utils";
+import { useConversationPanelPreferencesStore } from "#/stores/conversation-panel-preferences-store";
 import {
   dropdownMenuRowClassName,
   dropdownMenuListClassName,
@@ -120,6 +121,9 @@ export function LocalNewConversationMenu({
 
   const launch = (workingDir?: string) => {
     if (isCreating) return;
+    if (workingDir) {
+      useConversationPanelPreferencesStore.getState().setOrganizeMode("grouped");
+    }
     createConversation(
       { workingDir, entryPoint: "sidebar_local_menu" },
       {

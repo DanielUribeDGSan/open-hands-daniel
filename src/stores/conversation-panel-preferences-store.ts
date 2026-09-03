@@ -66,7 +66,7 @@ const initialState: ConversationPanelPreferencesState = {
   showLlmProfiles: false,
   showTagsMetadata: false,
   showHoverMetadata: true,
-  organizeMode: "chronological",
+  organizeMode: "grouped",
   conversationSort: "updated",
   threadScope: "all",
   automationFilterMode: "all",
@@ -142,6 +142,19 @@ export const useConversationPanelPreferencesStore =
       }),
       {
         name: "conversation-panel-preferences",
+        // v1: default organize mode is workspace folders (Cursor-style).
+        // Migrating bumps existing chronological users onto grouped once.
+        version: 1,
+        migrate: (persisted) => {
+          const state = (persisted ?? {}) as Partial<
+            ConversationPanelPreferencesState
+          >;
+          return {
+            ...initialState,
+            ...state,
+            organizeMode: "grouped",
+          };
+        },
         storage: createJSONStorage(() => localStorage),
         // Only persist the data fields — actions are recreated on each load.
         partialize: (state): ConversationPanelPreferencesState => ({

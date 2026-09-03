@@ -53,7 +53,6 @@ import { useOptionalConversationId } from "#/hooks/use-conversation-id";
 import { useActiveConversation } from "#/hooks/query/use-active-conversation";
 import { I18nKey } from "#/i18n/declaration";
 import { hasConversationStarted } from "./components/resolve-picker-kind";
-import { useConversationOverviewGitDiffStats } from "#/hooks/use-conversation-overview-git-diff-stats";
 import {
   collectTurnChangeSummaries,
   TurnChangesCard,
@@ -120,7 +119,6 @@ export function ChatInterface() {
   } = useNewConversationCommand();
 
   const { curAgentState } = useAgentState();
-  const gitChangeStats = useConversationOverviewGitDiffStats();
   const { handleBuildPlanClick } = useHandleBuildPlanClick();
 
   // Cloud conversations whose sandbox is MISSING or ERROR are read-only:
@@ -141,33 +139,14 @@ export function ChatInterface() {
     () => [...turnChangeSummaries.completed.values()].at(-1) ?? null,
     [turnChangeSummaries.completed],
   );
-  const gitChangeSummary = React.useMemo(
-    () =>
-      gitChangeStats.changeCount > 0
-        ? {
-            files: gitChangeStats.files,
-            additions: gitChangeStats.additions,
-            deletions: gitChangeStats.deletions,
-          }
-        : null,
-    [
-      gitChangeStats.additions,
-      gitChangeStats.changeCount,
-      gitChangeStats.deletions,
-      gitChangeStats.files,
-    ],
-  );
   const isAgentActivelyRunning = curAgentState === AgentState.RUNNING;
-  // Live sticky card: only this turn's edits (or current git dirty state).
-  // Never fall back to a previous completed turn while the agent is thinking.
-  const liveTurnChangeSummary =
-    turnChangeSummaries.live ?? gitChangeSummary;
-  // Final transcript card: keep turn edits visible after the agent stops,
-  // even when there was no FinishAction (common with ACP / kimi).
+  // Turn-scoped only — do NOT fall back to workspace-wide git overview stats.
+  // That hook fans out one diff query per dirty file and previously kept the
+  // Electron renderer pegged near 100% CPU when used from this always-mounted
+  // chat surface.
+  const liveTurnChangeSummary = turnChangeSummaries.live;
   const finalTurnChangeSummary =
-    turnChangeSummaries.live ??
-    latestCompletedChangeSummary ??
-    gitChangeSummary;
+    turnChangeSummaries.live ?? latestCompletedChangeSummary;
   const isArchivedConversation = useIsArchivedConversation();
 
   // Block sending in a resumed conversation that has no usable LLM, and show

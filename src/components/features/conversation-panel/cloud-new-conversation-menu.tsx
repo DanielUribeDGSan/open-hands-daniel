@@ -9,6 +9,7 @@ import { useSearchRepositories } from "#/hooks/query/use-search-repositories";
 import { useUserProviders } from "#/hooks/use-user-providers";
 import { useDebounce } from "#/hooks/use-debounce";
 import { useHomeStore } from "#/stores/home-store";
+import { useConversationPanelPreferencesStore } from "#/stores/conversation-panel-preferences-store";
 import { I18nKey } from "#/i18n/declaration";
 import { cn } from "#/utils/utils";
 import {
@@ -164,6 +165,7 @@ export function CloudNewConversationMenu({
 
   const launchRepository = (repo: GitRepository) => {
     if (isCreating) return;
+    useConversationPanelPreferencesStore.getState().setOrganizeMode("grouped");
     createConversation(
       {
         repository: {

@@ -14,6 +14,7 @@ import { getGroupConversationPreview } from "./conversation-panel-list-helpers";
 interface ConversationGroup {
   id: string;
   label: string;
+  subtitle?: string;
   conversations: AppConversation[];
   launch: ConversationGroupLaunch;
 }
@@ -182,7 +183,12 @@ export function ConversationGroupFolderRow({
               )}
               aria-hidden
             />
-            <span className="truncate">{group.label}</span>
+            <span className="min-w-0 truncate">{group.label}</span>
+            {group.subtitle ? (
+              <span className="min-w-0 shrink truncate text-xs font-normal text-[var(--oh-text-dim)]">
+                {group.subtitle}
+              </span>
+            ) : null}
           </button>
           <button
             type="button"
@@ -217,7 +223,7 @@ export function ConversationGroupFolderRow({
         {expanded ? (
           <div
             id={`thread-folder-content-${groupTestIdSuffix}`}
-            className="mt-0.5 space-y-0.5"
+            className="mt-0.5 space-y-0.5 pl-3"
           >
             {visibleConversations.map(renderConversationCard)}
             {isPreviewTruncated ? (

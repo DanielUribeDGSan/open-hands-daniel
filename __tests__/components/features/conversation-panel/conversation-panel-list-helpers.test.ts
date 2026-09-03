@@ -714,4 +714,24 @@ describe("conversation-panel-list-helpers", () => {
     );
     expect(groups).toHaveLength(0);
   });
+
+  it("keeps empty known workspaces but omits empty none-buckets, and adds subtitles", () => {
+    const knownWorkspaces = [
+      {
+        id: "/workspace/my-project",
+        name: "My Project",
+        path: "/workspace/my-project",
+      },
+    ];
+    const groups = groupConversations(
+      [],
+      "local",
+      "updated",
+      { emptyWorkspace: "No workspace", emptyRepository: "No repository" },
+      knownWorkspaces,
+    );
+    expect(groups.map((g) => g.id)).toEqual(["ws:/workspace/my-project"]);
+    expect(groups[0]?.subtitle).toBe("workspace/my-project");
+    expect(groups.some((g) => g.id === "__none_workspace")).toBe(false);
+  });
 });

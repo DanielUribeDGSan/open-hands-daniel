@@ -14857,6 +14857,23 @@
     "uk": "Розмови",
     "ca": "Converses"
   },
+  "SIDEBAR$WORKSPACES": {
+    "en": "Workspaces",
+    "ja": "ワークスペース",
+    "zh-CN": "工作区",
+    "zh-TW": "工作區",
+    "ko-KR": "워크스페이스",
+    "de": "Arbeitsbereiche",
+    "no": "Arbeidsområder",
+    "it": "Aree di lavoro",
+    "pt": "Workspaces",
+    "es": "Workspaces",
+    "ar": "مساحات العمل",
+    "fr": "Espaces de travail",
+    "tr": "Çalışma alanları",
+    "uk": "Робочі простори",
+    "ca": "Espais de treball"
+  },
   "SIDEBAR$SKILLS": {
     "en": "Skills",
     "ja": "スキル",

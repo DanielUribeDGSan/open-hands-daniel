@@ -19,6 +19,7 @@ import {
 interface ConversationGroup {
   id: string;
   label: string;
+  subtitle?: string;
   conversations: AppConversation[];
   launch: ConversationGroupLaunch;
 }
@@ -135,7 +136,7 @@ export function ConversationGroupFolderList({
 
   return (
     <nav
-      aria-label={t(I18nKey.SIDEBAR$CONVERSATIONS)}
+      aria-label={t(I18nKey.SIDEBAR$WORKSPACES)}
       className="space-y-1 md:space-y-0.5 pb-1"
     >
       {groups.map((group) => (

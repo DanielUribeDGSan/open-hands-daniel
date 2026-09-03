@@ -11,6 +11,9 @@ import {
   sumGitDiffLineStats,
 } from "#/utils/git-diff-stats";
 
+/** Cap parallel per-file diff fetches so a huge dirty tree can't saturate the UI. */
+const MAX_DIFF_STAT_QUERIES = 40;
+
 export function useConversationOverviewGitDiffStats() {
   const { conversationId } = useConversationId();
   const { data: conversation } = useActiveConversation();
@@ -34,7 +37,10 @@ export function useConversationOverviewGitDiffStats() {
   );
 
   const diffCandidates = useMemo(
-    () => (gitChanges ?? []).filter((change) => change.status !== "D"),
+    () =>
+      (gitChanges ?? [])
+        .filter((change) => change.status !== "D")
+        .slice(0, MAX_DIFF_STAT_QUERIES),
     [gitChanges],
   );
 
@@ -65,21 +71,38 @@ export function useConversationOverviewGitDiffStats() {
   });
 
   const isLoadingDiffs = diffQueries.some((query) => query.isLoading);
-  const totals = sumGitDiffLineStats(
-    diffQueries.flatMap((query) =>
-      query.data ? [countGitChangeDiffStats(query.data)] : [],
-    ),
-  );
-  const files = (gitChanges ?? []).map((change) => {
-    const candidateIndex = diffCandidates.findIndex(
-      (candidate) => candidate.path === change.path,
+
+  const queryStatsKey = diffQueries
+    .map((query) =>
+      query.data
+        ? `${countGitChangeDiffStats(query.data).additions}:${countGitChangeDiffStats(query.data).deletions}`
+        : query.status,
+    )
+    .join("|");
+
+  const totals = useMemo(() => {
+    return sumGitDiffLineStats(
+      diffQueries.flatMap((query) =>
+        query.data ? [countGitChangeDiffStats(query.data)] : [],
+      ),
     );
-    const stats =
-      candidateIndex >= 0 && diffQueries[candidateIndex]?.data
-        ? countGitChangeDiffStats(diffQueries[candidateIndex].data)
-        : { additions: 0, deletions: 0 };
-    return { path: change.path, ...stats };
-  });
+    // queryStatsKey tracks settled stats without depending on unstable array identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryStatsKey]);
+
+  const files = useMemo(() => {
+    return (gitChanges ?? []).map((change) => {
+      const candidateIndex = diffCandidates.findIndex(
+        (candidate) => candidate.path === change.path,
+      );
+      const stats =
+        candidateIndex >= 0 && diffQueries[candidateIndex]?.data
+          ? countGitChangeDiffStats(diffQueries[candidateIndex].data)
+          : { additions: 0, deletions: 0 };
+      return { path: change.path, ...stats };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gitChanges, diffCandidates, queryStatsKey]);
 
   return {
     additions: totals.additions,

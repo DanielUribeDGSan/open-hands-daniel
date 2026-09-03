@@ -6,15 +6,29 @@ const STORAGE_KEY = "conversation-panel-preferences";
 describe("conversation-panel-preferences store", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    useConversationPanelPreferencesStore.setState({
+      showOlderConversations: true,
+      showArchivedConversations: false,
+      showRepoBranchMetadata: false,
+      showLlmProfiles: false,
+      showTagsMetadata: false,
+      showHoverMetadata: true,
+      organizeMode: "grouped",
+      conversationSort: "updated",
+      threadScope: "all",
+      automationFilterMode: "all",
+      selectedAutomationNames: [],
+      groupFolderOrder: [],
+    });
   });
 
-  it("defaults to showing older conversations, chronological list, and expected toggles", () => {
+  it("defaults to showing older conversations, grouped workspaces, and expected toggles", () => {
     const state = useConversationPanelPreferencesStore.getState();
     expect(state.showOlderConversations).toBe(true);
     expect(state.showRepoBranchMetadata).toBe(false);
     expect(state.showLlmProfiles).toBe(false);
     expect(state.showTagsMetadata).toBe(false);
-    expect(state.organizeMode).toBe("chronological");
+    expect(state.organizeMode).toBe("grouped");
     expect(state.conversationSort).toBe("updated");
     expect(state.threadScope).toBe("all");
     expect(state.automationFilterMode).toBe("all");
@@ -173,7 +187,8 @@ describe("conversation-panel-preferences store", () => {
       showRepoBranchMetadata: true,
       // Filled with defaults for missing fields.
       showLlmProfiles: false,
-      organizeMode: "chronological",
+      // v1 migrate promotes workspace folders for existing users.
+      organizeMode: "grouped",
       conversationSort: "updated",
       threadScope: "all",
     });

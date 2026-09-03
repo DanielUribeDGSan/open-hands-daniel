@@ -424,19 +424,24 @@ export function groupConversations(
 ): {
   id: string;
   label: string;
+  subtitle?: string;
   conversations: AppConversation[];
   launch: ConversationGroupLaunch;
 }[] {
   const byId = new Map<
     string,
-    { label: string; conversations: AppConversation[] }
+    { label: string; subtitle?: string; conversations: AppConversation[] }
   >();
 
   if (backendKind === "local" && knownWorkspaces) {
     for (const ws of knownWorkspaces) {
       const normalized = ws.path.trim().replace(/\/+$/, "");
       if (normalized) {
-        byId.set(`ws:${normalized}`, { label: ws.name, conversations: [] });
+        byId.set(`ws:${normalized}`, {
+          label: ws.name,
+          subtitle: workspaceSubtitle(normalized, ws.name),
+          conversations: [],
+        });
       }
     }
   }
@@ -452,23 +457,46 @@ export function groupConversations(
         : id === "__none_repo"
           ? labels.emptyRepository
           : rawLabel;
+    const subtitle =
+      id === "__none_workspace" || id === "__none_repo"
+        ? undefined
+        : backendKind === "local"
+          ? workspaceSubtitle(id.startsWith("ws:") ? id.slice(3) : "", label)
+          : repositorySubtitle(c, label);
     const bucket = byId.get(id);
     if (bucket) {
       bucket.conversations.push(c);
+      if (!bucket.subtitle && subtitle) {
+        bucket.subtitle = subtitle;
+      }
     } else {
-      byId.set(id, { label, conversations: [c] });
+      byId.set(id, { label, subtitle, conversations: [c] });
     }
   }
 
-  const groups = [...byId.entries()].map(([id, g]) => {
-    const conversations = sortConversationsByField(g.conversations, sortField);
-    return {
-      id,
-      label: g.label,
-      conversations,
-      launch: buildGroupLaunch(id, backendKind, conversations),
-    };
-  });
+  const groups = [...byId.entries()]
+    .filter(
+      ([id, g]) =>
+        // Hide empty "no workspace / no repo" placeholders — Cursor-style
+        // sidebars only show real project folders (and known empty workspaces).
+        !(
+          (id === "__none_workspace" || id === "__none_repo") &&
+          g.conversations.length === 0
+        ),
+    )
+    .map(([id, g]) => {
+      const conversations = sortConversationsByField(
+        g.conversations,
+        sortField,
+      );
+      return {
+        id,
+        label: g.label,
+        subtitle: g.subtitle,
+        conversations,
+        launch: buildGroupLaunch(id, backendKind, conversations),
+      };
+    });
 
   // Use reduce instead of `Math.max(...arr)` — the spread form would push
   // every conversation onto the call stack as a separate argument, which
@@ -487,6 +515,27 @@ export function groupConversations(
 
   groups.sort((a, b) => groupOrderKey(b) - groupOrderKey(a));
   return groups;
+}
+
+function workspaceSubtitle(path: string, label: string): string | undefined {
+  if (!path) return undefined;
+  const parts = path.split("/").filter(Boolean);
+  if (parts.length <= 1) return path === label ? undefined : path;
+  // Show a short parent trail, e.g. `uribe-desarrollo/ia-chat`.
+  const trail = parts.slice(-2).join("/");
+  return trail === label ? path : trail;
+}
+
+function repositorySubtitle(
+  conversation: AppConversation,
+  label: string,
+): string | undefined {
+  const repo = conversation.selected_repository?.trim().replace(/\/+$/, "");
+  if (!repo) return undefined;
+  const branch = conversation.selected_branch?.trim();
+  if (branch) return branch;
+  if (repo === label) return undefined;
+  return repo;
 }
 
 export function applyGroupFolderOrder<T extends { id: string }>(
