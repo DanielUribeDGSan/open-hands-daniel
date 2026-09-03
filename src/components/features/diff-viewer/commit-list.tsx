@@ -2,6 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { GitCommit } from "#/api/open-hands.types";
 import { I18nKey } from "#/i18n/declaration";
+import { cn } from "#/utils/utils";
 import { CommitRow } from "./commit-row";
 import { UncommittedChangesRow } from "./uncommitted-changes-row";
 import type { DiffChangeListItem } from "./diff-change-list";
@@ -19,6 +20,8 @@ export interface CommitListProps {
   initialExpandedPath?: string | null;
   /** Turn Vista previa before/after payloads keyed by path. */
   inlineDiffs?: Record<string, InlineFileDiff>;
+  /** Stretch expanded Review tree to the panel height. */
+  fillAvailable?: boolean;
 }
 
 /**
@@ -35,10 +38,12 @@ export function CommitList({
   onAutoExpandHandled,
   initialExpandedPath,
   inlineDiffs,
+  fillAvailable = false,
 }: CommitListProps) {
   const { t } = useTranslation("openhands");
   const [expandedKey, setExpandedKey] = React.useState<string | null>(null);
   const newestCommitSha = commits[0]?.sha ?? null;
+  const uncommittedExpanded = expandedKey === UNCOMMITTED_KEY;
 
   React.useEffect(() => {
     if (!autoExpandUncommitted) return;
@@ -68,10 +73,16 @@ export function CommitList({
   const showAuthor = new Set(commits.map((commit) => commit.author)).size > 1;
 
   return (
-    <section data-testid="commit-list" className="w-full flex flex-col">
+    <section
+      data-testid="commit-list"
+      className={cn(
+        "flex w-full flex-col",
+        fillAvailable && "h-full min-h-0",
+      )}
+    >
       <UncommittedChangesRow
         changes={uncommittedChanges}
-        isExpanded={expandedKey === UNCOMMITTED_KEY}
+        isExpanded={uncommittedExpanded}
         onToggle={() =>
           setExpandedKey((prev) =>
             prev === UNCOMMITTED_KEY ? null : UNCOMMITTED_KEY,
@@ -79,6 +90,7 @@ export function CommitList({
         }
         initialExpandedPath={initialExpandedPath}
         inlineDiffs={inlineDiffs}
+        fillAvailable={fillAvailable && uncommittedExpanded}
       />
       {commits.map((commit) => (
         <CommitRow

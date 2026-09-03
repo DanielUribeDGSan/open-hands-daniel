@@ -137,7 +137,7 @@ function GitCommits() {
   const autoExpandUncommitted = commitsAutoExpandSection === "uncommitted";
 
   return (
-    <main className="h-full w-full flex flex-col items-stretch">
+    <main className="flex h-full min-h-0 w-full flex-col items-stretch">
       {/* eslint-disable-next-line i18next/no-literal-string -- match turn card Spanish UI */}
       {turnPreview ? (
         <div
@@ -161,7 +161,13 @@ function GitCommits() {
         </div>
       ) : null}
       {showList ? (
-        <div className="h-full min-h-0 overflow-y-auto flex flex-col items-stretch custom-scrollbar-always">
+        <div
+          className={
+            turnPreview || !hasCommits
+              ? "flex min-h-0 flex-1 flex-col overflow-hidden"
+              : "custom-scrollbar-always flex h-full min-h-0 flex-col items-stretch overflow-y-auto"
+          }
+        >
           {/* Keyed by conversation so switching conversations collapses any
               expanded commit. */}
           <CommitList
@@ -173,6 +179,7 @@ function GitCommits() {
             autoExpandUncommitted={autoExpandUncommitted}
             onAutoExpandHandled={handleAutoExpandHandled}
             initialExpandedPath={commitsAutoExpandPath}
+            fillAvailable={turnPreview || !hasCommits}
           />
         </div>
       ) : (

@@ -200,10 +200,10 @@ export function DiffChangeTree({
     <div
       ref={containerRef}
       data-testid="diff-change-tree"
-      className="flex min-h-[280px] h-[min(65vh,520px)] w-full border-t border-[var(--oh-border)]"
+      className="flex h-full min-h-0 w-full flex-1 border-t border-[var(--oh-border)]"
     >
       <section
-        className="min-w-0 overflow-y-auto custom-scrollbar-always"
+        className="flex min-h-0 min-w-0 flex-col overflow-hidden"
         style={{
           width: `${leftWidth}%`,
           transition: isDragging ? "none" : "width 0.15s ease-out",
@@ -218,6 +218,7 @@ export function DiffChangeTree({
             inlineDiff={inlineDiffs?.[selectedChange.path]}
             isExpanded
             onToggle={() => undefined}
+            fillHeight
           />
         ) : null}
       </section>
@@ -230,7 +231,7 @@ export function DiffChangeTree({
 
       <aside
         data-testid="diff-change-tree-sidebar"
-        className="flex shrink-0 flex-col overflow-y-auto border-l border-[var(--oh-border)] bg-[var(--oh-surface)] py-1.5 custom-scrollbar-always"
+        className="flex min-h-0 shrink-0 flex-col overflow-y-auto border-l border-[var(--oh-border)] bg-[var(--oh-surface)] py-1.5 custom-scrollbar-always"
         style={{
           width: `${100 - leftWidth}%`,
           minWidth: REVIEW_TREE_SIDEBAR_MIN_PX,

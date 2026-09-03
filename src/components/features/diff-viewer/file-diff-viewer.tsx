@@ -12,6 +12,7 @@ import {
 import { IconType } from "react-icons/lib";
 import { GitChangeStatus } from "#/api/open-hands.types";
 import { getLanguageFromPath } from "#/utils/get-language-from-path";
+import { getPrismLanguageForFile } from "#/utils/file-language";
 import { cn } from "#/utils/utils";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useUnifiedGitDiff } from "#/hooks/query/use-unified-git-diff";
@@ -97,6 +98,8 @@ export interface FileDiffViewerProps {
   isExpanded?: boolean;
   /** Required with `isExpanded` for controlled accordion lists. */
   onToggle?: () => void;
+  /** Stretch the open diff pane to fill the Review tree layout. */
+  fillHeight?: boolean;
 }
 
 export interface InlineFileDiff {
@@ -111,6 +114,7 @@ export function FileDiffViewer({
   inlineDiff,
   isExpanded: controlledExpanded,
   onToggle,
+  fillHeight = false,
 }: FileDiffViewerProps) {
   const [uncontrolledExpanded, setUncontrolledExpanded] = React.useState(false);
   const isControlled = controlledExpanded !== undefined;
@@ -188,6 +192,7 @@ export function FileDiffViewer({
     );
 
   const language = getLanguageFromPath(filePath);
+  const prismLanguage = getPrismLanguageForFile(filePath);
   const isMarkdownFile = language === "markdown";
   const singleViewContent =
     viewMode === "old" ? (diff?.original ?? "") : (diff?.modified ?? "");
@@ -195,39 +200,52 @@ export function FileDiffViewer({
   const showViewModeToggle = !isDeleted;
   const viewModeControlsVisible = !isCollapsed && showViewModeToggle;
 
-  const renderEditorShell = (editor: React.ReactNode) => (
-    <div
-      className={cn(
-        "relative w-full",
-        // Collapse layout space until Monaco reports a real content height so
-        // expand doesn't flash a placeholder editor size.
-        !hasMeasuredEditorHeight && "h-0 overflow-hidden",
-      )}
-    >
-      <EditorContainer
-        height={
-          hasMeasuredEditorHeight ? editorHeight : clampDiffEditorHeight(400)
-        }
+  const renderEditorShell = (editor: React.ReactNode) => {
+    if (fillHeight) {
+      return (
+        <div className="min-h-0 w-full flex-1 overflow-hidden border-b border-[var(--oh-border)]">
+          {editor}
+        </div>
+      );
+    }
+
+    return (
+      <div
         className={cn(
-          !hasMeasuredEditorHeight && "absolute inset-x-0 top-0 invisible",
+          "relative w-full",
+          // Collapse layout space until Monaco reports a real content height so
+          // expand doesn't flash a placeholder editor size.
+          !hasMeasuredEditorHeight && "h-0 overflow-hidden",
         )}
       >
-        {editor}
-      </EditorContainer>
-    </div>
-  );
+        <EditorContainer
+          height={
+            hasMeasuredEditorHeight ? editorHeight : clampDiffEditorHeight(400)
+          }
+          className={cn(
+            !hasMeasuredEditorHeight && "absolute inset-x-0 top-0 invisible",
+          )}
+        >
+          {editor}
+        </EditorContainer>
+      </div>
+    );
+  };
 
   const renderContent = () => {
     if (viewMode === "diff") {
       return (
         <div
           data-testid="file-diff-viewer"
-          className="max-h-[600px] overflow-auto border-b border-[var(--oh-border)] bg-[#181818] p-2 custom-scrollbar-always"
+          className={cn(
+            "overflow-auto border-b border-[var(--oh-border)] bg-[#181818] p-2 custom-scrollbar-always",
+            fillHeight ? "min-h-0 flex-1" : "max-h-[600px]",
+          )}
         >
           <DiffView
             oldText={isAdded ? "" : (diff?.original ?? "")}
             newText={isDeleted ? "" : (diff?.modified ?? "")}
-            language={language}
+            language={prismLanguage ?? undefined}
           />
         </div>
       );
@@ -236,9 +254,12 @@ export function FileDiffViewer({
     if (isMarkdownFile) {
       return (
         <div
-          className="w-full border-b border-[var(--oh-border)] overflow-auto p-4 bg-base prose prose-invert max-w-none"
+          className={cn(
+            "w-full overflow-auto border-b border-[var(--oh-border)] bg-base p-4 prose prose-invert max-w-none",
+            fillHeight ? "min-h-0 flex-1" : undefined,
+          )}
           data-testid="markdown-preview"
-          style={{ maxHeight: MAX_DIFF_EDITOR_HEIGHT_PX }}
+          style={fillHeight ? undefined : { maxHeight: MAX_DIFF_EDITOR_HEIGHT_PX }}
         >
           <MarkdownRenderer
             content={singleViewContent}
@@ -252,7 +273,7 @@ export function FileDiffViewer({
     return renderEditorShell(
       <Editor
         data-testid="file-single-viewer"
-        className="w-full h-full"
+        className="h-full w-full"
         language={language}
         value={singleViewContent}
         theme="custom-diff-theme"
@@ -264,15 +285,21 @@ export function FileDiffViewer({
   };
 
   return (
-    <div data-testid="file-diff-viewer-outer" className="w-full flex flex-col">
+    <div
+      data-testid="file-diff-viewer-outer"
+      className={cn(
+        "flex w-full flex-col",
+        fillHeight && "h-full min-h-0",
+      )}
+    >
       <div
-        className="flex h-10 items-center px-3 border-b border-[var(--oh-border)] hover:cursor-pointer"
+        className="flex h-10 flex-shrink-0 cursor-pointer items-center border-b border-[var(--oh-border)] px-3"
         onClick={handleToggle}
       >
-        <span className="text-sm w-full text-content flex items-center gap-2 min-w-0">
-          <span className="inline-flex w-4 h-4 shrink-0 items-center justify-center">
+        <span className="flex w-full min-w-0 items-center gap-2 text-sm text-content">
+          <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center">
             {isFetchingData ? (
-              <LoadingSpinner className="w-4 h-4" />
+              <LoadingSpinner className="h-4 w-4" />
             ) : (
               statusIcon
             )}
@@ -283,7 +310,7 @@ export function FileDiffViewer({
           {showViewModeToggle && (
             <span
               className={cn(
-                "flex items-center gap-0.5 shrink-0",
+                "flex shrink-0 items-center gap-0.5",
                 !viewModeControlsVisible && "invisible pointer-events-none",
               )}
               onClick={(e) => e.stopPropagation()}
@@ -298,13 +325,13 @@ export function FileDiffViewer({
                   aria-pressed={viewMode === mode}
                   onClick={() => setViewMode(mode)}
                   className={cn(
-                    "p-1 rounded transition-colors cursor-pointer",
+                    "cursor-pointer rounded p-1 transition-colors",
                     viewMode === mode
                       ? "bg-[var(--oh-interactive-hover)] text-white"
                       : "text-[var(--oh-muted)] hover:bg-[var(--oh-interactive-hover)] hover:text-white",
                   )}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="h-4 w-4" />
                 </button>
               ))}
             </span>
@@ -315,15 +342,19 @@ export function FileDiffViewer({
             className="shrink-0 text-[var(--oh-muted)]"
           >
             {isCollapsed ? (
-              <ChevronRight className="w-4 h-4" aria-hidden />
+              <ChevronRight className="h-4 w-4" aria-hidden />
             ) : (
-              <ChevronDown className="w-4 h-4" aria-hidden />
+              <ChevronDown className="h-4 w-4" aria-hidden />
             )}
           </button>
         </span>
       </div>
 
-      <AccordionPanel open={isExpanded}>
+      <AccordionPanel
+        open={isExpanded}
+        fill={fillHeight}
+        className={cn(fillHeight && "min-h-0")}
+      >
         {isSuccess && renderContent()}
       </AccordionPanel>
     </div>

@@ -12,6 +12,12 @@ interface AccordionPanelProps {
   children: ReactNode;
   testId?: string;
   className?: string;
+  /**
+   * When true, the open panel fills remaining flex height instead of sizing
+   * to content (`height: auto`). Needed for Review tree + diff to stretch
+   * with the right drawer / monitor height.
+   */
+  fill?: boolean;
 }
 
 /**
@@ -23,8 +29,20 @@ export function AccordionPanel({
   children,
   testId,
   className,
+  fill = false,
 }: AccordionPanelProps) {
   const reduceMotion = useReducedMotion();
+
+  if (fill) {
+    return open ? (
+      <div
+        data-testid={testId}
+        className={cn("flex min-h-0 flex-1 flex-col overflow-hidden", className)}
+      >
+        {children}
+      </div>
+    ) : null;
+  }
 
   if (reduceMotion) {
     return open ? (

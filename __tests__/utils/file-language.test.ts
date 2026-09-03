@@ -17,6 +17,7 @@ describe("getPrismLanguageForFile", () => {
     expect(getPrismLanguageForFile("index.html")).toBe("markup");
     expect(getPrismLanguageForFile("page.htm")).toBe("markup");
     expect(getPrismLanguageForFile("logo.svg")).toBe("markup");
+    expect(getPrismLanguageForFile("layouts/AppPage.astro")).toBe("markup");
     expect(getPrismLanguageForFile("styles/main.css")).toBe("css");
     expect(getPrismLanguageForFile("styles/main.scss")).toBe("scss");
     expect(getPrismLanguageForFile("README.md")).toBe("markdown");

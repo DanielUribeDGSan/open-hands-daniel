@@ -110,10 +110,12 @@ export const computeLineDiff = (
   });
 };
 
+// Background + gutter only — avoid forcing text color so Prism / VS Code
+// token colors (keywords, strings, tags…) stay visible on each line.
 const ROW_STYLE: Record<DiffRow["type"], string> = {
-  add: "bg-[#10291f] text-[#9be9b1] border-l-[#2ea043]",
-  del: "bg-[#2d1719] text-[#ffb3ba] border-l-[#f85149]",
-  ctx: "text-[#e6edf3] border-l-transparent",
+  add: "bg-[#10291f] border-l-[#2ea043]",
+  del: "bg-[#2d1719] border-l-[#f85149]",
+  ctx: "border-l-transparent",
 };
 const ROW_PREFIX: Record<DiffRow["type"], string> = {
   add: "+ ",
@@ -158,7 +160,7 @@ export function DiffView({
               {row.newLine ?? ""}
             </span>
             <code className="flex min-w-0 whitespace-pre-wrap px-3 text-[12px]">
-              <span className="mr-2 inline-block w-2 select-none opacity-80">
+              <span className="mr-2 inline-block w-2 select-none text-[#8b949e] opacity-80">
                 {ROW_PREFIX[row.type].trim()}
               </span>
               {language ? (
@@ -179,7 +181,7 @@ export function DiffView({
                   {row.text || " "}
                 </SyntaxHighlighter>
               ) : (
-                row.text || " "
+                <span className="text-[#e6edf3]">{row.text || " "}</span>
               )}
             </code>
           </div>
