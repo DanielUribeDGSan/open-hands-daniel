@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { FolderTree } from "lucide-react";
 import { CommitList } from "#/components/features/diff-viewer/commit-list";
 import { DiffDrawerIcon } from "#/components/features/diff-viewer/diff-drawer-icon";
 import type { DiffChangeListItem } from "#/components/features/diff-viewer/diff-change-list";
@@ -59,14 +60,31 @@ function GitCommits() {
   const commitsReviewTurnFiles = useConversationStore(
     (state) => state.commitsReviewTurnFiles,
   );
+  const setCommitsReviewTurnFiles = useConversationStore(
+    (state) => state.setCommitsReviewTurnFiles,
+  );
+  const setCommitsReviewFilterPaths = useConversationStore(
+    (state) => state.setCommitsReviewFilterPaths,
+  );
   const handleAutoExpandHandled = useCallback(() => {
     setCommitsAutoExpandSection(null);
   }, [setCommitsAutoExpandSection]);
+
+  const showAllProjectChanges = useCallback(() => {
+    setCommitsReviewTurnFiles(null);
+    setCommitsReviewFilterPaths(null);
+    setCommitsAutoExpandSection("uncommitted");
+  }, [
+    setCommitsAutoExpandSection,
+    setCommitsReviewFilterPaths,
+    setCommitsReviewTurnFiles,
+  ]);
 
   const { curAgentState } = useAgentState();
   const runtimeIsActive = !RUNTIME_INACTIVE_STATES.includes(curAgentState);
 
   const turnPreview = Boolean(commitsReviewTurnFiles?.length);
+  const turnFileCount = commitsReviewTurnFiles?.length ?? 0;
 
   const inlineDiffs = useMemo(() => {
     if (!commitsReviewTurnFiles?.length) return undefined;
@@ -113,8 +131,30 @@ function GitCommits() {
 
   return (
     <main className="h-full w-full flex flex-col items-stretch">
+      {/* eslint-disable-next-line i18next/no-literal-string -- match turn card Spanish UI */}
+      {turnPreview ? (
+        <div
+          data-testid="commits-turn-preview-toolbar"
+          className="flex shrink-0 items-center gap-2 border-b border-[var(--oh-border)] px-3 py-2"
+        >
+          <span className="min-w-0 flex-1 truncate text-xs text-[var(--oh-text-secondary)]">
+            {turnFileCount === 1
+              ? "Vista previa · 1 archivo del turno"
+              : `Vista previa · ${turnFileCount} archivos del turno`}
+          </span>
+          <button
+            type="button"
+            onClick={showAllProjectChanges}
+            data-testid="commits-show-all-project-changes"
+            className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-xs text-white hover:bg-[var(--oh-interactive-hover)]"
+          >
+            <FolderTree className="h-3.5 w-3.5" aria-hidden />
+            Ver todos los cambios
+          </button>
+        </div>
+      ) : null}
       {showList ? (
-        <div className="h-full overflow-y-auto flex flex-col items-stretch custom-scrollbar-always">
+        <div className="h-full min-h-0 overflow-y-auto flex flex-col items-stretch custom-scrollbar-always">
           {/* Keyed by conversation so switching conversations collapses any
               expanded commit. */}
           <CommitList
