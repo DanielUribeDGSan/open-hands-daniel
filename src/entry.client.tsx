@@ -45,5 +45,41 @@ prepareApp().then(() =>
         </AgentServerUIProviders>
       </StrictMode>,
     );
+
+    // Keep the Electron splash up until the shell skeleton (or real layout)
+    // is in the DOM — avoids a blank black main window between splash and UI.
+    const desktop = (
+      window as Window & {
+        desktop?: { notifyRendererReady?: () => void };
+      }
+    ).desktop;
+
+    const notifyReady = () => desktop?.notifyRendererReady?.();
+
+    const hasUi = () =>
+      Boolean(
+        document.querySelector('[data-testid="app-shell-skeleton"]') ||
+          document.querySelector('[data-testid="root-layout"]'),
+      );
+
+    if (hasUi()) {
+      requestAnimationFrame(() => requestAnimationFrame(notifyReady));
+      return;
+    }
+
+    const observer = new MutationObserver(() => {
+      if (hasUi()) {
+        observer.disconnect();
+        requestAnimationFrame(() => requestAnimationFrame(notifyReady));
+      }
+    });
+    observer.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+    });
+    window.setTimeout(() => {
+      observer.disconnect();
+      notifyReady();
+    }, 12_000);
   }),
 );

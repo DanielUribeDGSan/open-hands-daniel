@@ -18,11 +18,15 @@ interface CommandMenuTriggerProps {
 
 const COMMAND_MENU_TRIGGER_TEST_ID = "command-menu-trigger";
 const COMMAND_MENU_TRIGGER_ICON_SIZE = 18;
+const COMMAND_MENU_TRIGGER_COLLAPSED_ICON_SIZE = 24;
 
 export function CommandMenuTrigger({ collapsed }: CommandMenuTriggerProps) {
   const { t } = useTranslation("openhands");
   const open = useCommandMenuStore((state) => state.open);
   const label = t(I18nKey.COMMAND_MENU$OPEN_LABEL);
+  const iconSize = collapsed
+    ? COMMAND_MENU_TRIGGER_COLLAPSED_ICON_SIZE
+    : COMMAND_MENU_TRIGGER_ICON_SIZE;
 
   const trigger = (
     <button
@@ -37,15 +41,12 @@ export function CommandMenuTrigger({ collapsed }: CommandMenuTriggerProps) {
           : "group justify-between border border-[var(--oh-border-subtle)] bg-[var(--oh-surface)]/50 hover:border-[var(--oh-border)] hover:bg-[var(--oh-surface-raised)]",
       )}
     >
-      <span className="flex min-w-0 items-center gap-2">
-        {collapsed ? (
-          <SidebarCollapsedIconSlot active={false}>
-            <Search
-              width={COMMAND_MENU_TRIGGER_ICON_SIZE}
-              height={COMMAND_MENU_TRIGGER_ICON_SIZE}
-            />
-          </SidebarCollapsedIconSlot>
-        ) : (
+      {collapsed ? (
+        <SidebarCollapsedIconSlot active={false}>
+          <Search width={iconSize} height={iconSize} />
+        </SidebarCollapsedIconSlot>
+      ) : (
+        <span className="flex min-w-0 items-center gap-2">
           <span
             className={cn(
               SIDEBAR_ICON_SLOT_CLASS,
@@ -53,19 +54,18 @@ export function CommandMenuTrigger({ collapsed }: CommandMenuTriggerProps) {
             )}
             aria-hidden="true"
           >
-            <Search
-              width={COMMAND_MENU_TRIGGER_ICON_SIZE}
-              height={COMMAND_MENU_TRIGGER_ICON_SIZE}
-            />
+            <Search width={iconSize} height={iconSize} />
           </span>
-        )}
-        <span className={sidebarNavLabelClassName(collapsed)}>{label}</span>
-      </span>
-      {!collapsed ? (
+          <span className={sidebarNavLabelClassName(false)}>{label}</span>
+        </span>
+      )}
+      {collapsed ? (
+        <span className={sidebarNavLabelClassName(true)}>{label}</span>
+      ) : (
         <kbd className="rounded-md border border-[var(--oh-border)] bg-black/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--oh-text-dim)]">
           {t(I18nKey.COMMAND_MENU$SHORTCUT)}
         </kbd>
-      ) : null}
+      )}
     </button>
   );
 

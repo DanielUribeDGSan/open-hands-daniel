@@ -27,4 +27,16 @@ contextBridge.exposeInMainWorld("desktop", {
   /** Open a native folder picker. Returns selected absolute paths (or []). */
   showOpenDirectory: (options) =>
     ipcRenderer.invoke("desktop:show-open-directory", options ?? {}),
+
+  /**
+   * Tell main the React UI has painted so the splash can close without
+   * flashing an empty translucent window.
+   */
+  notifyRendererReady: () => {
+    try {
+      ipcRenderer.send("desktop:renderer-ready");
+    } catch {
+      /* ignore */
+    }
+  },
 });

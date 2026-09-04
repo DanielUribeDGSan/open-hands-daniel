@@ -19,16 +19,12 @@ import { useSyncTelemetryConsent } from "#/hooks/use-sync-telemetry-consent";
 import { useSyncAutomationTelemetryConsent } from "#/hooks/use-sync-automation-telemetry-consent";
 
 import { useTelemetryIdentity } from "#/hooks/use-telemetry-identity";
-import { LoadingSpinner } from "#/components/shared/loading-spinner";
 import { useAppTitle } from "#/hooks/use-app-title";
 import { ReactRouterNavigationProvider } from "./react-router-navigation-provider";
 import { OnboardingHost } from "#/components/features/onboarding";
 import { isOnboardingPreviewActive } from "#/components/features/onboarding/onboarding-preview";
 import { CanvasExtensionsRuntimeProvider } from "#/components/features/canvas-extensions/canvas-extensions-runtime";
-import {
-  cn,
-  supportsNativeVibrancy,
-} from "#/utils/utils";
+import { AppShellSkeleton } from "#/components/shared/app-shell-skeleton";
 
 const EnvironmentSwitchOverlay = React.lazy(
   () => import("#/components/features/backends/environment-switch-overlay"),
@@ -99,11 +95,7 @@ export default function MainApp() {
   }, [settings?.language]);
 
   if (config.isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-base">
-        <LoadingSpinner size="large" />
-      </div>
-    );
+    return <AppShellSkeleton />;
   }
 
   // Conversation + full-screen panel routes put the mobile menu control in the
@@ -111,17 +103,7 @@ export default function MainApp() {
   const hideMobileSidebarMenuBar = /^\/conversations\/[^/]+/.test(
     location.pathname,
   );
-  const isConversationRoute = hideMobileSidebarMenuBar;
   const showOnboardingPreview = isOnboardingPreviewActive(location.search);
-  const useVibrancy = supportsNativeVibrancy();
-
-  React.useEffect(() => {
-    if (!useVibrancy) return undefined;
-    document.documentElement.dataset.vibrancy = "true";
-    return () => {
-      delete document.documentElement.dataset.vibrancy;
-    };
-  }, [useVibrancy]);
 
   return (
     <ReactRouterNavigationProvider>
@@ -129,22 +111,12 @@ export default function MainApp() {
         <SidebarMobileNavProvider>
           <div
             data-testid="root-layout"
-            className={cn(
-              "h-screen lg:min-w-5xl flex flex-col md:flex-row overflow-hidden p-0",
-              useVibrancy ? "bg-transparent" : "bg-base",
-            )}
+            className="h-screen lg:min-w-5xl flex flex-col md:flex-row overflow-hidden p-0 bg-base"
           >
             <title>{appTitle}</title>
             <Sidebar />
 
-            <div
-              className={cn(
-                "flex min-h-0 flex-col w-full min-w-0 h-full gap-3",
-                // Keep non-conversation pages opaque; conversation needs a
-                // transparent shell so the right drawer can show vibrancy.
-                useVibrancy && !isConversationRoute && "bg-[#181818]",
-              )}
-            >
+            <div className="flex min-h-0 flex-col w-full min-w-0 h-full gap-3 bg-[#181818] oh-chat-surface">
               {!hideMobileSidebarMenuBar ? <SidebarMobileMenuBar /> : null}
               {config.data &&
                 (config.data.maintenance_start_time ||

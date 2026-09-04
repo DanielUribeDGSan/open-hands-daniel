@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef } from "react";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
-import { SyntaxHighlighter } from "#/components/features/markdown/syntax-highlighter";
+import { highlightSourceLines } from "#/utils/highlight-source-lines";
 import { getPrismLanguageForFile } from "#/utils/file-language";
 import type { AgentFileFocus } from "#/stores/files-tab-store";
+import { cn } from "#/utils/utils";
 
 interface HighlightedSourceViewProps {
   path: string;
@@ -13,18 +13,9 @@ interface HighlightedSourceViewProps {
 }
 
 /**
- * Renders the raw bytes of a workspace text file with Prism syntax
- * highlighting. Used both in:
- *   - Rich mode for actual source files (.ts, .py, .yaml, …) — there is
- *     no "rich" rendering of source code, so highlighted source IS the
- *     rich view.
- *   - Plain mode for source code AND for the source form of markdown /
- *     HTML files (so users can inspect the markup behind a rich preview).
- *
- * When we don't have a Prism grammar for the file we fall through to a
- * plain `<pre>` so the bytes still show. The wrapper styling matches the
- * right-pane background so the highlighted block reads as part of the
- * surrounding chrome instead of a floating card.
+ * Renders workspace text with Prism/refractor token colors. Uses full-file
+ * highlighting (and Astro/HTML script-aware coloring) so JS keywords/strings
+ * aren't left plain white.
  */
 export function HighlightedSourceView({
   path,
@@ -34,6 +25,11 @@ export function HighlightedSourceView({
 }: HighlightedSourceViewProps) {
   const language = getPrismLanguageForFile(path, mimeType);
   const containerRef = useRef<HTMLDivElement>(null);
+  const lines = useMemo(
+    () => highlightSourceLines(text, language),
+    [text, language],
+  );
+
   const focusRange = useMemo(() => {
     if (!agentFocus) return null;
     let start = agentFocus.startLine;
@@ -60,13 +56,30 @@ export function HighlightedSourceView({
   }, [focusRange]);
 
   if (!language) {
+    const plainLines = highlightSourceLines(text, null);
     return (
-      <pre
+      <div
         data-testid="file-content-viewer-plain"
-        className="h-full w-full overflow-auto whitespace-pre-wrap break-words bg-[#181818] p-4 text-xs leading-5 text-[#f0f3f6] custom-scrollbar-always"
+        className="oh-prism h-full w-full overflow-auto bg-[#181818] text-[#d4d4d4] custom-scrollbar-always"
       >
-        {text}
-      </pre>
+        <table className="w-full min-w-full border-collapse p-4 text-xs leading-5">
+          <tbody>
+            {plainLines.map((html, index) => (
+              <tr key={index + 1}>
+                <td className="select-none whitespace-nowrap px-3 py-0 text-right align-top text-[var(--oh-border)]">
+                  {index + 1}
+                </td>
+                <td
+                  className="w-full whitespace-pre-wrap px-3 py-0 align-top"
+                  dangerouslySetInnerHTML={{
+                    __html: html && html.length > 0 ? html : " ",
+                  }}
+                />
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     );
   }
 
@@ -75,54 +88,39 @@ export function HighlightedSourceView({
       ref={containerRef}
       data-testid="file-content-viewer-highlighted"
       data-language={language}
-      className="h-full w-full overflow-auto bg-[#181818] text-[#f0f3f6] custom-scrollbar-always"
+      className="oh-prism h-full w-full overflow-auto bg-[#181818] text-[#d4d4d4] custom-scrollbar-always"
     >
-      <SyntaxHighlighter
-        language={language}
-        style={vscDarkPlus}
-        showLineNumbers
-        wrapLongLines={false}
-        // Override the theme's hard-coded background so the highlighter
-        // blends with the right-pane chrome instead of painting a slab
-        // of a slightly-different dark color.
-        customStyle={{
-          margin: 0,
-          padding: "1rem",
-          background: "transparent",
-          fontSize: "0.75rem",
-          lineHeight: "1.25rem",
-          minHeight: "100%",
-        }}
-        codeTagProps={{
-          style: {
-            background: "transparent",
-            color: "#f0f3f6",
-            fontFamily: "inherit",
-          },
-        }}
-        lineNumberStyle={{
-          color: "var(--oh-border)",
-          minWidth: "2.5em",
-          paddingRight: "1em",
-          userSelect: "none",
-        }}
-        lineProps={(lineNumber: number) => ({
-          "data-agent-line": lineNumber,
-          style:
-            focusRange &&
-            lineNumber >= focusRange.start &&
-            lineNumber <= focusRange.end
-              ? {
-                  display: "block",
-                  background: "rgba(59, 130, 246, 0.20)",
-                  borderLeft: "2px solid #60a5fa",
-                  marginLeft: "-2px",
-                }
-              : { display: "block" },
-        })}
-      >
-        {text}
-      </SyntaxHighlighter>
+      <table className="w-full min-w-full border-collapse p-4 text-xs leading-5">
+        <tbody>
+          {lines.map((html, index) => {
+            const lineNumber = index + 1;
+            const focused =
+              focusRange &&
+              lineNumber >= focusRange.start &&
+              lineNumber <= focusRange.end;
+            return (
+              <tr
+                key={lineNumber}
+                data-agent-line={lineNumber}
+                className={cn(
+                  focused &&
+                    "border-l-2 border-l-[#60a5fa] bg-[rgba(59,130,246,0.20)]",
+                )}
+              >
+                <td className="select-none whitespace-nowrap px-3 py-0 text-right align-top text-[var(--oh-border)]">
+                  {lineNumber}
+                </td>
+                <td
+                  className="w-full whitespace-pre-wrap px-3 py-0 align-top"
+                  dangerouslySetInnerHTML={{
+                    __html: html && html.length > 0 ? html : " ",
+                  }}
+                />
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

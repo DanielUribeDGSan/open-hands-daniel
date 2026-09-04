@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
 import FileIcon from "#/icons/file.svg?react";
@@ -11,6 +10,8 @@ interface TreeNodeProps {
   depth: number;
   selectedPath: string | null;
   onSelectFile: (path: string) => void;
+  expandedDirs: ReadonlySet<string>;
+  onToggleDir: (path: string) => void;
 }
 
 export function TreeNode({
@@ -18,16 +19,18 @@ export function TreeNode({
   depth,
   selectedPath,
   onSelectFile,
+  expandedDirs,
+  onToggleDir,
 }: TreeNodeProps) {
-  const [isOpen, setIsOpen] = useState(false);
   const indentPx = 8 + depth * 12;
 
   if (node.isDirectory) {
+    const isOpen = expandedDirs.has(node.path);
     return (
       <li>
         <button
           type="button"
-          onClick={() => setIsOpen((prev) => !prev)}
+          onClick={() => onToggleDir(node.path)}
           aria-expanded={isOpen}
           data-testid={`file-tree-dir-${node.path}`}
           className={cn(
@@ -59,6 +62,8 @@ export function TreeNode({
                 depth={depth + 1}
                 selectedPath={selectedPath}
                 onSelectFile={onSelectFile}
+                expandedDirs={expandedDirs}
+                onToggleDir={onToggleDir}
               />
             ))}
           </ul>

@@ -12,6 +12,8 @@ import { useSidebarMobileNav } from "./sidebar-mobile-nav-context";
 import { useSidebarStore } from "#/stores/sidebar-store";
 import { useClickOutsideElement } from "#/hooks/use-click-outside-element";
 import { useBackendsHealth } from "#/hooks/query/use-backends-health";
+import { ResizeHandle } from "#/components/ui/resize-handle";
+import { useResizableDrawerWidth } from "#/hooks/use-resizable-drawer-width";
 // The LLM settings modal is only mounted when the settings query 404s and
 // LLM settings aren't hidden — keep it out of the sidebar's eager graph.
 const SettingsModal = React.lazy(() =>
@@ -35,6 +37,15 @@ const ManageBackendsModal = React.lazy(() =>
 );
 
 const MOBILE_DRAWER_TRANSITION_MS = 250;
+/** Collapsed icon rail — not user-resizable. */
+const SIDEBAR_COLLAPSED_WIDTH_PX = 88;
+/** Default / maximum expanded width (current fixed size). */
+const SIDEBAR_DEFAULT_WIDTH_PX = 300;
+const SIDEBAR_MAX_WIDTH_PX = 300;
+/** Narrowest usable expanded width before labels become too cramped. */
+const SIDEBAR_MIN_WIDTH_PX = 220;
+const SIDEBAR_WIDTH_STORAGE_KEY = "openhands-sidebar-width";
+const SIDEBAR_RESIZE_HANDLE_TEST_ID = "sidebar-resize-handle";
 
 export function Sidebar() {
   const { t } = useTranslation("openhands");
@@ -63,7 +74,6 @@ export function Sidebar() {
   const [addBackendModalOpen, setAddBackendModalOpen] = React.useState(false);
   const [manageBackendsModalOpen, setManageBackendsModalOpen] =
     React.useState(false);
-  const [collapsedRailHovered, setCollapsedRailHovered] = React.useState(false);
   const suppressCollapsedExpandRef = React.useRef(false);
   const [, refreshCollapsedExpandGate] = React.useReducer((n) => n + 1, 0);
   const { isOpen: isMobileNavOpen, close: closeMobileNav } =
@@ -165,7 +175,6 @@ export function Sidebar() {
     [collapsed, setCollapsed],
   );
   const handleCollapse = React.useCallback(() => {
-    setCollapsedRailHovered(false);
     suppressCollapsedExpandRef.current = true;
     refreshCollapsedExpandGate();
     setCollapsed(true);
@@ -175,7 +184,7 @@ export function Sidebar() {
     }, 250);
   }, [setCollapsed]);
   const showCollapsedExpandButton =
-    collapsed && collapsedRailHovered && !suppressCollapsedExpandRef.current;
+    collapsed && !suppressCollapsedExpandRef.current;
 
   const isExtensionsActive =
     currentPath === "/customize" ||
@@ -201,40 +210,68 @@ export function Sidebar() {
   };
 
   const isElectron = isElectronApp();
+  const sidebarLayoutRef = React.useRef<HTMLDivElement>(null);
+  const resizeEnabled = !collapsed;
+  const { drawerWidth, isDragging, handleMouseDown } = useResizableDrawerWidth({
+    containerRef: sidebarLayoutRef,
+    defaultWidth: SIDEBAR_DEFAULT_WIDTH_PX,
+    minWidth: SIDEBAR_MIN_WIDTH_PX,
+    maxWidth: SIDEBAR_MAX_WIDTH_PX,
+    storageKey: SIDEBAR_WIDTH_STORAGE_KEY,
+    enabled: resizeEnabled,
+    edge: "left",
+  });
 
   return (
     <>
-      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- the aside acts as a hit-area for the collapsed rail; nested controls handle their own keyboard interactions. */}
-      <aside
-        aria-label={t(I18nKey.SIDEBAR$NAVIGATION_LABEL)}
-        data-collapsed={collapsed ? "true" : "false"}
-        onClick={handleCollapsedRailClick}
-        onMouseEnter={() => {
-          if (collapsed) {
-            setCollapsedRailHovered(true);
-          }
-        }}
-        onMouseLeave={() => {
-          setCollapsedRailHovered(false);
-        }}
-        className={cn(
-          "max-md:hidden flex oh-vibrancy-panel flex-col min-h-0 transition-[width,min-width] duration-200",
-          "md:border-r md:border-[var(--oh-border)] md:h-full",
-          collapsed
-            ? "md:w-[60px] md:min-w-[60px] md:px-2.5"
-            : "md:w-[300px] md:min-w-[300px] pb-2 md:pl-2.5 md:pr-0",
-          currentPath === "/" && "md:pb-3",
-        )}
+      {/* Desktop rail + resize grip share one flex row so the handle can
+          self-stretch (same pattern as the Files tree). */}
+      <div
+        ref={sidebarLayoutRef}
+        className="max-md:hidden flex h-full min-h-0 shrink-0"
       >
-        {isElectron && (
-          <div className="h-8 w-full shrink-0 [-webkit-app-region:drag]" />
-        )}
-        <SidebarRailBody
-          collapsed={collapsed}
-          showCollapseToggle
-          {...railBodyProps}
-        />
-      </aside>
+        {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- the aside acts as a hit-area for the collapsed rail; nested controls handle their own keyboard interactions. */}
+        <aside
+          aria-label={t(I18nKey.SIDEBAR$NAVIGATION_LABEL)}
+          data-collapsed={collapsed ? "true" : "false"}
+          onClick={handleCollapsedRailClick}
+          className={cn(
+            "flex oh-vibrancy-panel flex-col min-h-0",
+            "border-r border-[var(--oh-border)] h-full",
+            collapsed ? "px-2" : "pb-2 pl-2.5 pr-0",
+            !isDragging && "transition-[width,min-width] duration-200",
+            currentPath === "/" && "pb-3",
+          )}
+          style={
+            collapsed
+              ? {
+                  width: SIDEBAR_COLLAPSED_WIDTH_PX,
+                  minWidth: SIDEBAR_COLLAPSED_WIDTH_PX,
+                }
+              : {
+                  width: drawerWidth,
+                  minWidth: drawerWidth,
+                  maxWidth: SIDEBAR_MAX_WIDTH_PX,
+                }
+          }
+        >
+          {isElectron && (
+            <div className="h-8 w-full shrink-0 [-webkit-app-region:drag]" />
+          )}
+          <SidebarRailBody
+            collapsed={collapsed}
+            showCollapseToggle
+            {...railBodyProps}
+          />
+        </aside>
+        {resizeEnabled ? (
+          <ResizeHandle
+            onMouseDown={handleMouseDown}
+            isDragging={isDragging}
+            testId={SIDEBAR_RESIZE_HANDLE_TEST_ID}
+          />
+        ) : null}
+      </div>
 
       {mobileDrawerMounted ? (
         <>

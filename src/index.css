@@ -16,9 +16,10 @@
     var(--cool-grey-300) 20%,
     transparent
   );
-  /* Codex-like chrome */
-  --oh-panel-chrome: #2e2e2e;
-  --oh-vibrancy-tint: rgba(40, 40, 40, 0.52);
+  /* Chrome / side panels — solid gray (no macOS vibrancy) */
+  --oh-panel-chrome: #222222;
+  --oh-sidebar-gray: #222222;
+  --oh-chat-surface: #181818;
   --oh-diff-add-bg: #1f3124;
   --oh-diff-del-bg: #3c1e1b;
   --bg-dark: var(--oh-bg-dark);
@@ -160,29 +161,68 @@ code {
   animation: environment-switch-overlay-fade 980ms ease-in-out forwards;
 }
 
-/* macOS Electron vibrancy: clear the opaque shell so sidebars can show the
-   desktop wallpaper through. Content panes paint their own solid backgrounds. */
-html[data-vibrancy="true"],
-html[data-vibrancy="true"] body {
-  background-color: transparent !important;
-}
-
+/* Solid panel gray (#222222) — class name kept for existing call sites */
 .oh-vibrancy-panel {
-  background-color: var(--oh-vibrancy-tint);
-}
-
-html[data-vibrancy="true"] .oh-vibrancy-panel {
-  /* Native vibrancy already blurs the wallpaper; keep a light tint only. */
-  background-color: rgba(28, 28, 28, 0.28);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-
-html:not([data-vibrancy="true"]) .oh-vibrancy-panel {
-  backdrop-filter: saturate(160%) blur(28px);
-  -webkit-backdrop-filter: saturate(160%) blur(28px);
+  background-color: var(--oh-sidebar-gray);
 }
 
 .oh-panel-chrome {
   background-color: var(--oh-panel-chrome);
+}
+
+.oh-chat-surface {
+  background-color: var(--oh-chat-surface);
+}
+
+/* VS Code Dark+ token colors for refractor/Prism class output */
+.oh-prism {
+  color: #d4d4d4;
+}
+.oh-prism .token.comment,
+.oh-prism .token.prolog {
+  color: #6a9955;
+}
+.oh-prism .token.keyword,
+.oh-prism .token.boolean,
+.oh-prism .token.tag,
+.oh-prism .token.atrule,
+.oh-prism .token.important {
+  color: #569cd6;
+}
+.oh-prism .token.string,
+.oh-prism .token.attr-value,
+.oh-prism .token.char,
+.oh-prism .token.builtin,
+.oh-prism .token.inserted {
+  color: #ce9178;
+}
+.oh-prism .token.function {
+  color: #dcdcaa;
+}
+.oh-prism .token.number {
+  color: #b5cea8;
+}
+.oh-prism .token.operator,
+.oh-prism .token.punctuation,
+.oh-prism .token.entity {
+  color: #d4d4d4;
+}
+.oh-prism .token.property,
+.oh-prism .token.attr-name,
+.oh-prism .token.constant,
+.oh-prism .token.variable,
+.oh-prism .token.parameter {
+  color: #9cdcfe;
+}
+.oh-prism .token.class-name {
+  color: #4ec9b0;
+}
+.oh-prism .token.regex {
+  color: #d16969;
+}
+.oh-prism .token.selector {
+  color: #d7ba7d;
+}
+.oh-prism .token.deleted {
+  color: #ce9178;
 }

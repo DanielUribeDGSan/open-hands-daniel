@@ -22,7 +22,8 @@ describe("DiffChangeTree", () => {
     vi.clearAllMocks();
   });
 
-  it("renders code on the left, tree on the right, with a resize handle", () => {
+  it("renders a full-bleed editor with a floating tree island", async () => {
+    const user = userEvent.setup();
     render(
       <DiffChangeTree
         changes={[
@@ -33,17 +34,19 @@ describe("DiffChangeTree", () => {
     );
 
     const root = screen.getByTestId("diff-change-tree");
-    const sidebar = screen.getByTestId("diff-change-tree-sidebar");
-    const handle = screen.getByTestId("diff-change-tree-resize-handle");
-    expect(root).toContainElement(handle);
-    expect(root).toContainElement(sidebar);
-    // Code pane first, then handle, then tree (Codex order).
     expect(
-      root.compareDocumentPosition(sidebar) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-    expect(screen.getByText("src")).toBeInTheDocument();
+      screen.queryByTestId("diff-change-tree-resize-handle"),
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId("file-diff-viewer")).toBeInTheDocument();
+    expect(screen.getByTestId("diff-change-tree-island-trigger")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("diff-change-tree-sidebar"),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId("diff-change-tree-island-trigger"));
+    const sidebar = await screen.findByTestId("diff-change-tree-sidebar");
+    expect(root).toContainElement(sidebar);
+    expect(screen.getByText("src")).toBeInTheDocument();
   });
 
   it("selects initialSelectedPath when provided", async () => {
@@ -58,12 +61,22 @@ describe("DiffChangeTree", () => {
       />,
     );
 
-    const files = screen.getAllByTestId("diff-change-tree-file");
-    const aFile = files.find((el) => el.getAttribute("data-path") === "src/a.ts")!;
-    const bFile = files.find((el) => el.getAttribute("data-path") === "src/b.ts")!;
-    expect(bFile.className).toMatch(/bg-\[var\(--oh-interactive-hover\)\]/);
+    await user.click(screen.getByTestId("diff-change-tree-island-trigger"));
+    const files = await screen.findAllByTestId("diff-change-tree-file");
+    const aFile = files.find(
+      (el) => el.getAttribute("data-path") === "src/a.ts",
+    )!;
+    const bFile = files.find(
+      (el) => el.getAttribute("data-path") === "src/b.ts",
+    )!;
+    expect(bFile.className).toMatch(/bg-white\/10/);
 
     await user.click(aFile);
-    expect(aFile.className).toMatch(/bg-\[var\(--oh-interactive-hover\)\]/);
+    // Selecting a file closes the island; reopen to assert selection style.
+    await user.click(screen.getByTestId("diff-change-tree-island-trigger"));
+    const aFileAgain = (
+      await screen.findAllByTestId("diff-change-tree-file")
+    ).find((el) => el.getAttribute("data-path") === "src/a.ts")!;
+    expect(aFileAgain.className).toMatch(/bg-white\/10/);
   });
 });

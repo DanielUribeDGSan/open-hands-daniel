@@ -62,7 +62,7 @@ export function ConversationMain() {
             chat input doesn't slam the floor. */}
         <div
           className={cn(
-            "flex flex-col bg-[#181818] overflow-hidden",
+            "flex flex-col oh-chat-surface bg-[#181818] overflow-hidden",
             isMobile
               ? "flex-1"
               : cn(

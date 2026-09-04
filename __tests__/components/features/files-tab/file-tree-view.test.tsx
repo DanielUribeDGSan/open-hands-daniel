@@ -65,4 +65,37 @@ describe("FileTreeView", () => {
     expect(onSelectFile).toHaveBeenCalledTimes(1);
     expect(onSelectFile).toHaveBeenCalledWith("README.md");
   });
+
+  it("keeps controlled expanded dirs after remount", () => {
+    const expandedDirs = new Set(["src"]);
+    const { unmount } = render(
+      <FileTreeView
+        paths={["src/main.ts"]}
+        selectedPath={null}
+        onSelectFile={vi.fn()}
+        expandedDirs={expandedDirs}
+        onExpandedDirsChange={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByTestId("file-tree-file-src/main.ts"),
+    ).toBeInTheDocument();
+
+    unmount();
+
+    render(
+      <FileTreeView
+        paths={["src/main.ts"]}
+        selectedPath={null}
+        onSelectFile={vi.fn()}
+        expandedDirs={expandedDirs}
+        onExpandedDirsChange={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByTestId("file-tree-file-src/main.ts"),
+    ).toBeInTheDocument();
+  });
 });

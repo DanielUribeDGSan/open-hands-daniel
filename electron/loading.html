@@ -7,18 +7,16 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* Agent Canvas design tokens. The splash renders before the frontend is
-       served, so it cannot import the app's CSS — these values mirror the
-       static baseline in src/tailwind.css / src/index.css. Keep in sync. */
+    /* Match the app sidebar gray (#222222) — neutral, not cool/blue. */
     :root {
-      --oh-background: #0b0e14; /* cool-grey-950 */
-      --oh-foreground: #eef2f7; /* cool-grey-100 */
-      --oh-muted: #a3b0c4; /* cool-grey-400 */
-      --oh-text-dim: #7e8a9e; /* cool-grey-500 */
-      --oh-text-subtle: #626d82; /* cool-grey-600 */
-      --oh-border: #4b5468; /* cool-grey-700 */
-      --oh-border-subtle: #383f50; /* cool-grey-800 */
-      --oh-surface-deep: #05070a; /* cool-grey-975 */
+      --oh-background: #222222;
+      --oh-foreground: #f0f0f0;
+      --oh-muted: #a3a3a3;
+      --oh-text-dim: #8a8a8a;
+      --oh-text-subtle: #6e6e6e;
+      --oh-border: #404040;
+      --oh-border-subtle: #333333;
+      --oh-surface-deep: #1a1a1a;
       --oh-color-danger: #e76a5e;
     }
 

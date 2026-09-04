@@ -8,9 +8,9 @@ export const navInteractiveTransitionClassName =
 export const SIDEBAR_ICON_SLOT_CLASS =
   "flex h-9 w-[18px] shrink-0 items-center justify-center";
 
-/** Collapsed rail: 36px-tall hit target; width follows the row (full rail). */
+/** Collapsed rail: 40px-tall hit target; width follows the row (full rail). */
 export const SIDEBAR_COLLAPSED_ICON_SLOT_CLASS =
-  "relative h-9 min-h-9 max-h-9 w-full shrink-0";
+  "relative h-10 min-h-10 max-h-10 w-full shrink-0";
 
 export const SIDEBAR_HEADER_ROW_CLASS =
   "flex h-10 min-h-10 shrink-0 items-center gap-2 pl-2.5 pr-2.5 w-full";
@@ -30,7 +30,7 @@ export const SIDEBAR_ROW_INTERACTIVE_CLASS = {
 export function sidebarNavListClassName(collapsed: boolean): string {
   return cn(
     "flex flex-col gap-0.5 w-full shrink-0 items-stretch",
-    !collapsed && "pr-2.5",
+    collapsed ? "mt-3" : "pr-2.5",
   );
 }
 
@@ -40,12 +40,12 @@ export function sidebarNavRowClassName(options?: {
 }): string {
   const { indent = false, collapsed = false } = options ?? {};
   return cn(
-    "flex h-9 min-h-9 min-w-0 items-center rounded-md",
+    "flex min-h-9 min-w-0 items-center rounded-md",
     navInteractiveTransitionClassName,
     "text-sm leading-5 w-full",
     collapsed
-      ? "group gap-0 px-0 overflow-visible bg-transparent hover:bg-transparent"
-      : "gap-2 px-2.5 overflow-hidden",
+      ? "group h-10 min-h-10 gap-0 px-0 overflow-visible bg-transparent hover:bg-transparent"
+      : "h-9 gap-2 px-2.5 overflow-hidden",
     indent && !collapsed && "pl-7",
   );
 }
@@ -60,12 +60,10 @@ export function sidebarCollapsedIconBgClassName(active: boolean): string {
   );
 }
 
-/** Matches expanded row `px-2.5` + 18px icon column alignment. */
+/** Center glyphs in the wider collapsed rail (covers macOS traffic lights). */
 export function sidebarCollapsedIconGlyphClassName(active: boolean): string {
   return cn(
-    // Full width inside the 36px-tall slot; `pl-2.5` aligns with expanded `px-2.5` rows.
-    // Do not set a narrow `w-[18px]` here — with horizontal padding it shrinks the glyph.
-    "relative z-[1] flex h-full w-full items-center justify-start pl-2.5 [&_svg]:shrink-0",
+    "relative z-[1] flex h-full w-full items-center justify-center [&_svg]:shrink-0",
     active
       ? "text-white font-normal"
       : "text-[var(--oh-muted)] group-hover:text-white",
@@ -92,9 +90,9 @@ export const SIDEBAR_COLLAPSED_LOGO_WRAPPER_CLASS = cn(
 );
 
 export const SIDEBAR_COLLAPSE_TOGGLE_OVERLAY_CLASS = cn(
-  "absolute left-1/2 top-1/2 hidden h-7 w-7 -translate-x-1/2 -translate-y-1/2 md:inline-flex",
-  "items-center justify-center rounded-md",
+  "relative inline-flex h-10 w-full shrink-0 items-center justify-center rounded-md md:inline-flex",
   navInteractiveTransitionClassName,
   "cursor-pointer",
-  "text-[var(--oh-muted)] hover:text-white hover:bg-[var(--oh-surface-raised)]",
+  // Solid enough to read without hover; hover only strengthens.
+  "text-white bg-white/10 hover:bg-[var(--oh-surface-raised)]",
 );

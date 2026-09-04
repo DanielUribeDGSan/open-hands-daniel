@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -9,7 +9,6 @@ import { useWorkspaceFiles } from "#/hooks/query/use-workspace-files";
 import { useWorkspaceFileContent } from "#/hooks/query/use-workspace-file-content";
 import { useAutoRefreshFilesOnEdit } from "#/hooks/use-auto-refresh-files-on-edit";
 import { useOptionalConversationId } from "#/hooks/use-conversation-id";
-import { useResizableDrawerWidth } from "#/hooks/use-resizable-drawer-width";
 import {
   getConversationState,
   useConversationLocalStorageState,
@@ -24,20 +23,12 @@ import { FileContentViewer } from "#/components/features/files-tab/file-content-
 import { SegmentedToggle } from "#/components/features/files-tab/segmented-toggle";
 import { WorkspacePath } from "#/components/features/files-tab/workspace-path";
 import type { ViewMode } from "#/components/features/files-tab/view-mode";
-import {
-  FILES_TAB_TREE_DEFAULT_WIDTH_PX,
-  FILES_TAB_TREE_MAX_WIDTH_PX,
-  FILES_TAB_TREE_MIN_WIDTH_PX,
-  FILES_TAB_TREE_RESIZE_HANDLE_TEST_ID,
-  FILES_TAB_TREE_WIDTH_STORAGE_KEY,
-} from "#/components/features/files-tab/files-tab-tree.constants";
-import { ResizeHandle } from "#/components/ui/resize-handle";
+import { FloatingTreeIsland } from "#/components/shared/floating-tree-island";
 import RefreshIcon from "#/icons/u-refresh.svg?react";
 import LinkExternalIcon from "#/icons/link-external.svg?react";
 import { useActiveConversation } from "#/hooks/query/use-active-conversation";
 import { useAgentState } from "#/hooks/use-agent-state";
 import { AgentState } from "#/types/agent-state";
-import { FolderTree } from "lucide-react";
 
 /**
  * Workspace file browser. Diff/Commits live in the sibling Commits
@@ -58,24 +49,13 @@ function FilesTab() {
   const {
     state: persistedState,
     setFilesTabContentViewMode,
-    setFilesTabTreeVisible,
   } = useConversationLocalStorageState(conversationId ?? "");
   const contentViewMode = persistedState.filesTabContentViewMode;
-  const isTreeVisible = persistedState.filesTabTreeVisible ?? true;
-  const treeLayoutRef = useRef<HTMLDivElement>(null);
-  const {
-    drawerWidth: treeWidth,
-    isDragging: isTreeResizing,
-    handleMouseDown: handleTreeResizeMouseDown,
-  } = useResizableDrawerWidth({
-    containerRef: treeLayoutRef,
-    defaultWidth: FILES_TAB_TREE_DEFAULT_WIDTH_PX,
-    minWidth: FILES_TAB_TREE_MIN_WIDTH_PX,
-    maxWidth: FILES_TAB_TREE_MAX_WIDTH_PX,
-    storageKey: FILES_TAB_TREE_WIDTH_STORAGE_KEY,
-    enabled: isTreeVisible,
-    edge: "left",
-  });
+  const [treeIslandOpen, setTreeIslandOpen] = useState(false);
+  // Lives above FloatingTreeIsland so expand/collapse survives remounts.
+  const [expandedDirs, setExpandedDirs] = useState(
+    () => new Set<string>(),
+  );
 
   const filesQuery = useWorkspaceFiles();
   const paths = useMemo(() => filesQuery.data ?? [], [filesQuery.data]);
@@ -92,14 +72,6 @@ function FilesTab() {
   const hydrateForConversation = useFilesTabStore(
     (s) => s.hydrateForConversation,
   );
-  const toggleTreeVisible = useCallback(() => {
-    if (agentFocus) {
-      clearAgentFocus();
-      setFilesTabTreeVisible?.(true);
-    } else {
-      setFilesTabTreeVisible?.(!isTreeVisible);
-    }
-  }, [agentFocus, clearAgentFocus, isTreeVisible, setFilesTabTreeVisible]);
 
   // A selection is scoped to the conversation it was made in. Ignore a path
   // that belongs to a different conversation so we never try to open a file
@@ -115,11 +87,10 @@ function FilesTab() {
     (path: string) => {
       clearAgentFocus();
       setSelectedPath(path, conversationId);
+      setTreeIslandOpen(false);
     },
     [clearAgentFocus, conversationId, setSelectedPath],
   );
-
-  const showTree = isTreeVisible && (!agentFocus || !!agentFocus.showTree);
 
   // Pre-fetch the selected file's content here too so the toolbar's
   // "open in new window" link can reach for its `staticUrl`. react-query
@@ -145,6 +116,7 @@ function FilesTab() {
       persisted.filesTabOpenPaths ?? [],
       persisted.filesTabSelectedPath ?? null,
     );
+    setExpandedDirs(new Set());
   }, [conversationId, selectedConversationId, hydrateForConversation]);
 
   const queryClient = useQueryClient();
@@ -163,20 +135,6 @@ function FilesTab() {
 
   const quickRowActions = (
     <div className="flex items-center gap-1">
-      {agentFocus && !showTree && (
-        <button
-          type="button"
-          onClick={() => {
-            clearAgentFocus();
-            setFilesTabTreeVisible?.(true);
-          }}
-          data-testid="files-tab-show-all-files"
-          className="flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-xs text-[var(--oh-text-secondary)] hover:bg-[var(--oh-interactive-hover)] hover:text-white"
-        >
-          <FolderTree className="h-3.5 w-3.5" aria-hidden />
-          {t(I18nKey.FILES$SHOW_FILE_TREE)}
-        </button>
-      )}
       <button
         type="button"
         onClick={refreshFiles}
@@ -198,7 +156,7 @@ function FilesTab() {
 
   return (
     <main
-      className="h-full w-full flex flex-col items-stretch"
+      className="relative h-full w-full flex flex-col items-stretch"
       data-testid="files-tab"
     >
       <WorkspacePath path={workspacePath} />
@@ -213,31 +171,11 @@ function FilesTab() {
             selectedPath={selectedPath}
             onSelectFile={handleSelectFile}
             onCloseFile={closeOpenPath}
-            isTreeVisible={showTree}
-            onToggleTree={toggleTreeVisible}
+            isTreeVisible={treeIslandOpen}
+            onToggleTree={() => setTreeIslandOpen((open) => !open)}
             actions={quickRowActions}
           />
-          <div ref={treeLayoutRef} className="flex h-full min-h-0 flex-1">
-            {showTree && (
-              <>
-                <aside
-                  className="shrink-0 border-r border-[var(--oh-border)] overflow-y-auto custom-scrollbar-always"
-                  data-testid="files-tab-tree"
-                  style={{ width: `${treeWidth}px` }}
-                >
-                  <FileTreeView
-                    paths={paths}
-                    selectedPath={selectedPath}
-                    onSelectFile={handleSelectFile}
-                  />
-                </aside>
-                <ResizeHandle
-                  testId={FILES_TAB_TREE_RESIZE_HANDLE_TEST_ID}
-                  onMouseDown={handleTreeResizeMouseDown}
-                  isDragging={isTreeResizing}
-                />
-              </>
-            )}
+          <div className="relative flex h-full min-h-0 flex-1 flex-col">
             <section
               className="flex h-full min-h-0 min-w-0 flex-1 flex-col"
               data-testid="files-tab-content"
@@ -299,6 +237,25 @@ function FilesTab() {
                 <NoFileSelectedMessage />
               )}
             </section>
+
+            <FloatingTreeIsland
+              label={t(I18nKey.FILES$SHOW_FILE_TREE)}
+              title={t(I18nKey.COMMON$FILES)}
+              count={paths.length || undefined}
+              open={treeIslandOpen}
+              onOpenChange={setTreeIslandOpen}
+              testId="files-tab-tree-island"
+            >
+              <div data-testid="files-tab-tree">
+                <FileTreeView
+                  paths={paths}
+                  selectedPath={selectedPath}
+                  onSelectFile={handleSelectFile}
+                  expandedDirs={expandedDirs}
+                  onExpandedDirsChange={setExpandedDirs}
+                />
+              </div>
+            </FloatingTreeIsland>
           </div>
         </>
       )}

@@ -28,12 +28,14 @@ import { useSelectConversationTab } from "#/hooks/use-select-conversation-tab";
 import { defineVisualizer, VisualizerProps } from "../define";
 import { textFromContent } from "../text-content";
 import { CodeBlock } from "../primitives/code-block";
-import { DiffView, computeLineDiff } from "../primitives/diff-view";
+import { computeLineDiff } from "../primitives/diff-view";
 import { FilePathChip } from "../primitives/file-path-chip";
 import {
   isMarkdownFilePath,
   MarkdownFilePreview,
 } from "../primitives/markdown-file-preview";
+import { buildAgentFileFocus } from "#/utils/build-agent-file-focus";
+import { useChatScrollFocusTarget } from "#/hooks/use-chat-scroll-file-focus";
 
 type FileEditorCardProps = VisualizerProps<
   FileEditorAction | StrReplaceEditorAction,
@@ -127,6 +129,25 @@ function FileEditorCardBody({
   const path = resolvePath({ action, observation });
   const command = observation?.observation.command ?? action?.action.command;
   const language = getLanguageFromPath(path);
+  const cardRef = React.useRef<HTMLDivElement>(null);
+  const focus = React.useMemo(
+    () =>
+      buildAgentFileFocus({
+        action: action?.action,
+        observation: observation?.observation,
+      }),
+    [action, observation],
+  );
+  const focusKey = focus
+    ? `file:${focus.path}:${focus.command}:${focus.startLine ?? ""}:${focus.endLine ?? ""}:${(focus.afterContent ?? "").length}`
+    : null;
+
+  useChatScrollFocusTarget(
+    cardRef,
+    focus && focusKey
+      ? { kind: "file", focus, key: focusKey }
+      : null,
+  );
 
   const viewRange = action?.action.view_range;
   const range =
@@ -197,7 +218,11 @@ function FileEditorCardBody({
       }
     }
     return (
-      <div className="flex flex-col gap-2">
+      <div
+        ref={cardRef}
+        className="flex flex-col gap-2"
+        data-chat-focus="file-edit"
+      >
         {leadingChip}
         {body}
       </div>
@@ -230,14 +255,18 @@ function FileEditorCardBody({
       leadingChip = null;
     }
     return (
-      <div className="flex flex-col gap-2">
+      <div
+        ref={cardRef}
+        className="flex flex-col gap-2"
+        data-chat-focus="file-edit"
+      >
         {leadingChip}
         {body}
       </div>
     );
   }
 
-  return null;
+  return <div ref={cardRef} className="hidden" aria-hidden />;
 }
 
 /**

@@ -202,42 +202,52 @@ describe("FilesTab", () => {
     expect(tab).toHaveAttribute("role", "tab");
   });
 
-  it("shows the file tree by default and collapses it via the caret", async () => {
+  it("keeps the file tree behind the floating island until opened", async () => {
     const user = userEvent.setup();
 
     renderTab();
 
-    expect(screen.getByTestId("files-tab-tree")).toBeInTheDocument();
-
-    await user.click(screen.getByTestId("file-quick-row-tree-toggle"));
     expect(screen.queryByTestId("files-tab-tree")).not.toBeInTheDocument();
+    expect(screen.getByTestId("files-tab-tree-island-trigger")).toBeInTheDocument();
 
     await user.click(screen.getByTestId("file-quick-row-tree-toggle"));
-    expect(screen.getByTestId("files-tab-tree")).toBeInTheDocument();
+    expect(await screen.findByTestId("files-tab-tree")).toBeInTheDocument();
+
+    await user.click(screen.getByTestId("file-quick-row-tree-toggle"));
+    await waitFor(() => {
+      expect(screen.queryByTestId("files-tab-tree")).not.toBeInTheDocument();
+    });
   });
 
-  it("exposes a grippable resize handle on the tree's right edge when expanded", () => {
+  it("does not use a side-column resize handle for the file tree", () => {
     window.localStorage.clear();
 
     renderTab();
 
     expect(
-      screen.getByTestId("files-tab-tree-resize-handle"),
-    ).toBeInTheDocument();
-    expect(screen.getByTestId("files-tab-tree")).toHaveStyle({
-      width: "224px",
-    });
+      screen.queryByTestId("files-tab-tree-resize-handle"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("files-tab-tree-island-trigger")).toBeInTheDocument();
   });
 
-  it("opens a tab from the file tree when a file is clicked", async () => {
+  it("keeps expanded folders open after closing and reopening the island", async () => {
     const user = userEvent.setup();
     renderTab();
 
-    await user.click(screen.getByTestId("file-tree-file-README.md"));
-
-    expect(useFilesTabStore.getState().openPaths).toContain("README.md");
+    await user.click(screen.getByTestId("files-tab-tree-island-trigger"));
+    await user.click(await screen.findByTestId("file-tree-dir-src"));
     expect(
-      screen.getByTestId("file-quick-row-item-README.md"),
+      await screen.findByTestId("file-tree-file-src/main.ts"),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByTestId("files-tab-tree-island-trigger"));
+    await waitFor(() => {
+      expect(screen.queryByTestId("files-tab-tree")).not.toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId("files-tab-tree-island-trigger"));
+    expect(
+      await screen.findByTestId("file-tree-file-src/main.ts"),
     ).toBeInTheDocument();
   });
 
@@ -378,14 +388,11 @@ describe("FilesTab", () => {
     expect(refresh).toHaveAttribute("aria-label", "FILES$REFRESH");
   });
 
-  it("persists and restores open files plus tree visibility across remount", async () => {
+  it("persists and restores open files across remount", async () => {
     const conversationId = "persist-files-conv";
-    const user = userEvent.setup();
-    const { unmount } = renderTab(conversationId);
-
-    await user.click(screen.getByTestId("file-quick-row-tree-toggle"));
     openFile("README.md", conversationId);
     openFile("src/main.ts", conversationId);
+    const { unmount } = renderTab(conversationId);
 
     await waitFor(() => {
       const raw = localStorage.getItem(
@@ -393,7 +400,6 @@ describe("FilesTab", () => {
       );
       expect(raw).toBeTruthy();
       const stored = JSON.parse(raw as string);
-      expect(stored.filesTabTreeVisible).toBe(false);
       expect(stored.filesTabOpenPaths).toEqual(["README.md", "src/main.ts"]);
       expect(stored.filesTabSelectedPath).toBe("src/main.ts");
     });
@@ -417,6 +423,9 @@ describe("FilesTab", () => {
       "main.ts",
     );
     expect(screen.queryByTestId("files-tab-tree")).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId("files-tab-tree-island-trigger"),
+    ).toBeInTheDocument();
   });
 
   it("hydrates open files from conversation localStorage on first mount", async () => {
@@ -434,7 +443,10 @@ describe("FilesTab", () => {
         screen.getByTestId("file-quick-row-item-README.md"),
       ).toBeInTheDocument();
     });
-    expect(screen.getByTestId("files-tab-tree")).toBeInTheDocument();
+    expect(screen.queryByTestId("files-tab-tree")).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId("files-tab-tree-island-trigger"),
+    ).toBeInTheDocument();
   });
 
   it("shows the Rich/Plain toggle only when a file is open", async () => {

@@ -6,10 +6,11 @@ import {
   FileDiff,
   FileMinus2,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { GitChangeStatus } from "#/api/open-hands.types";
 import { cn } from "#/utils/utils";
-import { ResizeHandle } from "#/components/ui/resize-handle";
-import { useResizablePanels } from "#/hooks/use-resizable-panels";
+import { FloatingTreeIsland } from "#/components/shared/floating-tree-island";
+import { I18nKey } from "#/i18n/declaration";
 import { FileDiffViewer } from "./file-diff-viewer";
 import type { InlineFileDiff } from "./file-diff-viewer";
 import {
@@ -18,9 +19,6 @@ import {
   type FileTreeNode,
 } from "./build-file-tree";
 import type { DiffChangeListItem } from "./diff-change-list";
-
-const REVIEW_TREE_SIDEBAR_MIN_PX = 120;
-const REVIEW_TREE_SIDEBAR_STORAGE_KEY = "review-diff-tree-left-width";
 
 export interface DiffChangeTreeProps {
   changes: DiffChangeListItem[];
@@ -73,7 +71,7 @@ function DirRow({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex w-full cursor-pointer items-center gap-1 rounded-md px-1.5 py-1 text-left text-xs text-[var(--oh-text-secondary)] hover:bg-[var(--oh-interactive-hover)]"
+        className="flex w-full cursor-pointer items-center gap-1 rounded-lg px-1.5 py-1.5 text-left text-xs text-[var(--oh-text-secondary)] hover:bg-white/[0.06]"
         style={{ paddingLeft: 6 + depth * 12 }}
         aria-expanded={open}
       >
@@ -133,9 +131,10 @@ function TreeNodeRow({
       data-testid="diff-change-tree-file"
       data-path={node.path}
       className={cn(
-        "flex w-full cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-xs hover:bg-[var(--oh-interactive-hover)]",
-        selected && "bg-[var(--oh-interactive-hover)] text-white",
-        !selected && "text-[var(--oh-text-secondary)]",
+        "flex w-full cursor-pointer items-center gap-1.5 rounded-lg px-1.5 py-1.5 text-left text-xs hover:bg-white/[0.06]",
+        selected
+          ? "bg-white/10 text-white"
+          : "text-[var(--oh-text-secondary)]",
       )}
       style={{ paddingLeft: 6 + depth * 12 + 18 }}
     >
@@ -146,8 +145,8 @@ function TreeNodeRow({
 }
 
 /**
- * Codex-style Review layout: code/diff on the left, folder tree on the right,
- * with a draggable divider between them.
+ * Review layout: full-bleed editor with an Apple-style floating island for
+ * the file tree (no side column).
  */
 export function DiffChangeTree({
   changes,
@@ -155,29 +154,19 @@ export function DiffChangeTree({
   initialSelectedPath,
   inlineDiffs,
 }: DiffChangeTreeProps) {
+  const { t } = useTranslation("openhands");
   const tree = useMemo(() => buildFileTree(changes), [changes]);
   const pathSet = useMemo(
     () => new Set(changes.map((change) => change.path)),
     [changes],
   );
+  const [treeOpen, setTreeOpen] = useState(false);
 
   const [selectedPath, setSelectedPath] = useState<string | null>(() => {
     if (initialSelectedPath && pathSet.has(initialSelectedPath)) {
       return initialSelectedPath;
     }
     return changes[0]?.path ?? null;
-  });
-
-  const {
-    leftWidth,
-    isDragging,
-    containerRef,
-    handleMouseDown,
-  } = useResizablePanels({
-    defaultLeftWidth: 62,
-    minLeftWidth: 35,
-    maxLeftWidth: 82,
-    storageKey: REVIEW_TREE_SIDEBAR_STORAGE_KEY,
   });
 
   useEffect(() => {
@@ -196,19 +185,17 @@ export function DiffChangeTree({
     return null;
   }
 
+  const handleSelect = (path: string) => {
+    setSelectedPath(path);
+    setTreeOpen(false);
+  };
+
   return (
     <div
-      ref={containerRef}
       data-testid="diff-change-tree"
-      className="flex h-full min-h-0 w-full flex-1 border-t border-[var(--oh-border)]"
+      className="relative flex h-full min-h-0 w-full flex-1 flex-col border-t border-[var(--oh-border)]"
     >
-      <section
-        className="flex min-h-0 min-w-0 flex-col overflow-hidden"
-        style={{
-          width: `${leftWidth}%`,
-          transition: isDragging ? "none" : "width 0.15s ease-out",
-        }}
-      >
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {selectedChange ? (
           <FileDiffViewer
             key={`${commit ?? "wt"}:${selectedChange.path}`}
@@ -223,32 +210,27 @@ export function DiffChangeTree({
         ) : null}
       </section>
 
-      <ResizeHandle
-        onMouseDown={handleMouseDown}
-        isDragging={isDragging}
-        testId="diff-change-tree-resize-handle"
-      />
-
-      <aside
-        data-testid="diff-change-tree-sidebar"
-        className="flex min-h-0 shrink-0 flex-col overflow-y-auto border-l border-[var(--oh-border)] bg-transparent py-1.5 custom-scrollbar-always"
-        style={{
-          width: `${100 - leftWidth}%`,
-          minWidth: REVIEW_TREE_SIDEBAR_MIN_PX,
-          transition: isDragging ? "none" : "width 0.15s ease-out",
-        }}
+      <FloatingTreeIsland
+        label={t(I18nKey.FILES$SHOW_FILE_TREE)}
+        title={t(I18nKey.COMMON$FILES)}
+        count={changes.length}
+        open={treeOpen}
+        onOpenChange={setTreeOpen}
+        testId="diff-change-tree-island"
       >
-        {tree.map((node) => (
-          <TreeNodeRow
-            key={node.kind === "dir" ? `d:${node.name}` : node.path}
-            node={node}
-            depth={0}
-            selectedPath={selectedPath}
-            onSelect={setSelectedPath}
-            defaultOpen
-          />
-        ))}
-      </aside>
+        <div data-testid="diff-change-tree-sidebar">
+          {tree.map((node) => (
+            <TreeNodeRow
+              key={node.kind === "dir" ? `d:${node.name}` : node.path}
+              node={node}
+              depth={0}
+              selectedPath={selectedPath}
+              onSelect={handleSelect}
+              defaultOpen
+            />
+          ))}
+        </div>
+      </FloatingTreeIsland>
     </div>
   );
 }

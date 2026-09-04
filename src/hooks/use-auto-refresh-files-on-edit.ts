@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEventStore, type OHEvent } from "#/stores/use-event-store";
 import { useWorkspaceMutationCounter } from "#/stores/use-workspace-mutation-counter";
 import { useFilesTabStore } from "#/stores/files-tab-store";
-import { useConversationId } from "#/hooks/use-conversation-id";
+import { useOptionalConversationId } from "#/hooks/use-conversation-id";
 import { useSelectConversationTab } from "#/hooks/use-select-conversation-tab";
 import { toFilesTabPath } from "#/utils/path-utils";
 import ConversationService from "#/api/conversation-service/conversation-service.api";
@@ -101,7 +101,7 @@ export function useAutoRefreshFilesOnEdit(): void {
     (state) => state.bump,
   );
 
-  const { conversationId } = useConversationId();
+  const { conversationId } = useOptionalConversationId();
   const focusAgentFile = useFilesTabStore((state) => state.focusAgentFile);
   const { navigateToTab } = useSelectConversationTab();
 
@@ -138,7 +138,9 @@ export function useAutoRefreshFilesOnEdit(): void {
     let editedFilePath: string | null = null;
     let hasNewBashCommands = false;
     let latestFileAction: FileAction | null = null;
-    for (const event of events) {
+    let latestFileActionEventIndex = -1;
+    for (let index = 0; index < events.length; index += 1) {
+      const event = events[index]!;
       const id: string | number | undefined =
         "id" in event ? event.id : undefined;
       const alreadyProcessed =
@@ -161,46 +163,58 @@ export function useAutoRefreshFilesOnEdit(): void {
           }
         }
         const fileAction = getFileAction(event);
-        if (fileAction?.path && fileAction.command)
+        if (fileAction?.path && fileAction.command) {
           latestFileAction = fileAction;
-        else if (isBashObservation(event)) hasNewBashCommands = true;
+          latestFileActionEventIndex = index;
+        } else if (isBashObservation(event)) hasNewBashCommands = true;
       }
     }
 
-    if (latestFileAction?.path && latestFileAction.command) {
-      const workingDir =
-        ConversationService.getCurrentConversation()?.workspace?.working_dir;
-      const path = toFilesTabPath(latestFileAction.path, workingDir);
-      if (path) {
-        const viewRange = latestFileAction.view_range;
-        const insertedLines = latestFileAction.new_str?.split("\n").length ?? 1;
-        const startLine =
-          latestFileAction.command === "insert"
-            ? (latestFileAction.insert_line ?? 0) + 1
-            : viewRange?.[0];
-        const endLine =
-          latestFileAction.command === "insert"
-            ? (startLine ?? 1) + insertedLines - 1
-            : viewRange?.[1] === -1
-              ? undefined
-              : viewRange?.[1];
-        focusAgentFile(
-          {
-            path,
-            command: latestFileAction.command,
-            startLine,
-            endLine,
-            oldText: latestFileAction.old_str ?? undefined,
-            newText: latestFileAction.new_str ?? undefined,
-            beforeContent: latestFileAction.old_str ?? "",
-            afterContent:
-              latestFileAction.command === "create"
-                ? (latestFileAction.file_text ?? "")
-                : (latestFileAction.new_str ?? ""),
-          },
-          conversationId,
-        );
-        navigateToTab("files");
+    if (
+      conversationId &&
+      latestFileAction?.path &&
+      latestFileAction.command
+    ) {
+      // Only auto-focus the live tail. History backfill (`loadOlder`) must not
+      // steal the Files panel — chat scroll-spy owns browsing either direction.
+      const isLiveTail =
+        latestFileActionEventIndex >= events.length - 5;
+      if (isLiveTail) {
+        const workingDir =
+          ConversationService.getCurrentConversation()?.workspace?.working_dir;
+        const path = toFilesTabPath(latestFileAction.path, workingDir);
+        if (path) {
+          const viewRange = latestFileAction.view_range;
+          const insertedLines =
+            latestFileAction.new_str?.split("\n").length ?? 1;
+          const startLine =
+            latestFileAction.command === "insert"
+              ? (latestFileAction.insert_line ?? 0) + 1
+              : viewRange?.[0];
+          const endLine =
+            latestFileAction.command === "insert"
+              ? (startLine ?? 1) + insertedLines - 1
+              : viewRange?.[1] === -1
+                ? undefined
+                : viewRange?.[1];
+          focusAgentFile(
+            {
+              path,
+              command: latestFileAction.command,
+              startLine,
+              endLine,
+              oldText: latestFileAction.old_str ?? undefined,
+              newText: latestFileAction.new_str ?? undefined,
+              beforeContent: latestFileAction.old_str ?? "",
+              afterContent:
+                latestFileAction.command === "create"
+                  ? (latestFileAction.file_text ?? "")
+                  : (latestFileAction.new_str ?? ""),
+            },
+            conversationId,
+          );
+          navigateToTab("files");
+        }
       }
     }
 

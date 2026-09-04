@@ -12,6 +12,8 @@ import { I18nKey } from "#/i18n/declaration";
 import { getEventContent } from "../event-content-helpers/get-event-content";
 import { IsInEventGroupContext } from "../../../features/chat/is-in-event-group-context";
 import { PathInteractiveContext } from "../../../features/chat/path-component";
+import { collectAgentFileFocusesFromEvents } from "#/utils/build-agent-file-focus";
+import { useChatScrollFocusTarget } from "#/hooks/use-chat-scroll-file-focus";
 
 interface EventGroupProps {
   /** The events represented by this group. Used to compute the summary. */
@@ -66,6 +68,25 @@ export function EventGroup({
   const [expanded, setExpanded] = React.useState(false);
   const contentId = React.useId();
   const buttonId = `${contentId}-toggle`;
+  const groupRef = React.useRef<HTMLDivElement>(null);
+
+  const fileFocuses = React.useMemo(
+    () => collectAgentFileFocusesFromEvents(events, allEvents ?? events),
+    [events, allEvents],
+  );
+  const scrubKey = React.useMemo(
+    () =>
+      `scrub:${fileFocuses.map((focus) => `${focus.path}:${focus.command}`).join("|")}`,
+    [fileFocuses],
+  );
+
+  // Collapsed groups still scrub through their file edits while scrolling.
+  useChatScrollFocusTarget(
+    groupRef,
+    !expanded && fileFocuses.length > 0
+      ? { kind: "file-scrub", focuses: fileFocuses, key: scrubKey }
+      : null,
+  );
 
   if (events.length === 0) {
     return null;
@@ -108,7 +129,14 @@ export function EventGroup({
   const Chevron = expanded ? ArrowUp : ArrowDown;
 
   return (
-    <div className="my-1 w-full py-1 text-sm" data-testid="event-group">
+    <div
+      ref={groupRef}
+      className="my-1 w-full py-1 text-sm"
+      data-testid="event-group"
+      data-chat-focus={
+        !expanded && fileFocuses.length > 0 ? "file-scrub" : undefined
+      }
+    >
       <button
         id={buttonId}
         type="button"

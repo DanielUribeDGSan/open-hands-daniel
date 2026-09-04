@@ -1,9 +1,7 @@
 import React from "react";
 import { ExtraProps } from "react-markdown";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
-import { CopyableContentWrapper } from "#/components/shared/buttons/copyable-content-wrapper";
 import { cn } from "#/utils/utils";
-import { SyntaxHighlighter } from "./syntax-highlighter";
+import { CodexCodeCard } from "./codex-code-card";
 
 // See https://github.com/remarkjs/react-markdown?tab=readme-ov-file#use-custom-components-syntax-highlight
 
@@ -27,7 +25,7 @@ export function code({
         <code
           className={cn(
             className,
-            "bg-surface-raised text-foreground border border-surface-raised rounded px-[0.4em] py-[0.2em]",
+            "rounded-md border border-[#3a3a3a] bg-[#2d2d2d] px-[0.4em] py-[0.15em] text-[0.9em] text-[#e8e8e8]",
           )}
         >
           {children}
@@ -35,25 +33,10 @@ export function code({
       );
     }
 
-    return (
-      <CopyableContentWrapper text={codeString}>
-        <pre className="bg-surface-raised text-foreground border border-surface-raised rounded p-[1em] overflow-auto">
-          <code className={className}>{codeString}</code>
-        </pre>
-      </CopyableContentWrapper>
-    );
+    return <CodexCodeCard code={codeString} wrapLongLines />;
   }
 
   return (
-    <CopyableContentWrapper text={codeString}>
-      <SyntaxHighlighter
-        className="rounded-lg"
-        style={vscDarkPlus}
-        language={match?.[1]}
-        PreTag="div"
-      >
-        {codeString}
-      </SyntaxHighlighter>
-    </CopyableContentWrapper>
+    <CodexCodeCard code={codeString} language={match[1]} wrapLongLines />
   );
 }

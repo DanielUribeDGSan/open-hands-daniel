@@ -21,6 +21,9 @@ const EXTENSION_TO_LANGUAGE: Record<string, string> = {
   cjs: "javascript",
   ts: "typescript",
   tsx: "tsx",
+  // Huawei ArkTS / HarmonyOS — TypeScript-like syntax
+  ets: "typescript",
+  etsx: "tsx",
 
   // Python
   py: "python",

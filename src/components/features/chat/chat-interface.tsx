@@ -16,6 +16,7 @@ import { useFilteredEvents } from "#/hooks/use-filtered-events";
 import { useScrollToBottom } from "#/hooks/use-scroll-to-bottom";
 import { useLoadOlderEvents } from "#/hooks/use-load-older-events";
 import { useAutoRefreshFilesOnEdit } from "#/hooks/use-auto-refresh-files-on-edit";
+import { useChatScrollFileFocus } from "#/hooks/use-chat-scroll-file-focus";
 import { WorkspaceFilesForChatProvider } from "./chat-markdown-path-code";
 import { TypingIndicator } from "./typing-indicator";
 import { ChatSuggestions } from "./chat-suggestions";
@@ -182,6 +183,7 @@ export function ChatInterface() {
     setAutoScroll,
     setHitBottom,
   } = useScrollToBottom(scrollRef);
+  useChatScrollFileFocus(scrollRef);
   const {
     mutate: newConversationCommand,
     isPending: isNewConversationPending,

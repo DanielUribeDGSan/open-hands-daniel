@@ -39,7 +39,7 @@ import {
   useBackendsHealth,
 } from "#/hooks/query/use-backends-health";
 import { TOAST_OPTIONS } from "#/utils/custom-toast-handlers";
-import { LoadingSpinner } from "#/components/shared/loading-spinner";
+import { AppShellSkeleton } from "#/components/shared/app-shell-skeleton";
 import { useConfig } from "#/hooks/query/use-config";
 import { QUERY_KEYS } from "#/hooks/query/query-keys";
 import { AgentServerUIRoot } from "#/components/providers";
@@ -51,7 +51,6 @@ import {
   applyColorTheme,
   readPersistedColorTheme,
 } from "#/themes/color-themes";
-import OpenHandsLogo from "#/assets/branding/openhands-logo.svg?react";
 
 /** Applies the persisted color-theme palette to document.body on mount. */
 function ColorThemeApplier() {
@@ -114,14 +113,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 function AgentServerBootstrapLoading() {
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-base text-white">
-      <div className="flex flex-col items-center gap-5">
-        <OpenHandsLogo width={80} height={80} className="drop-shadow-lg" />
-        <LoadingSpinner size="large" outerClassName="text-white" />
-      </div>
-    </main>
-  );
+  return <AppShellSkeleton />;
 }
 
 /**

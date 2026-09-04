@@ -321,8 +321,9 @@ function createLoadingWindow() {
     frame: false,
     center: true,
     show: false,
-    // Pre-paint window color; must match --oh-background in loading.html.
-    backgroundColor: "#181818",
+    // Pre-paint window color; must match --oh-background in loading.html
+    // (sidebar gray #222222, neutral — not cool/blue).
+    backgroundColor: "#222222",
     icon: appIconPath,
     webPreferences: {
       nodeIntegration: false,
@@ -370,17 +371,9 @@ function createMainWindow() {
     minWidth: 800,
     minHeight: 600,
     show: false,
-    // Transparent on macOS so sidebar/right-panel vibrancy can show the
-    // desktop wallpaper through (Codex-style). Opaque elsewhere to avoid
-    // white flashes during the splash → main transition.
-    backgroundColor: isMac ? "#00000000" : "#181818",
+    // Solid shell — matches chat surface; sidebars paint #222222 in CSS.
+    backgroundColor: "#181818",
     titleBarStyle: isMac ? "hiddenInset" : "default",
-    ...(isMac
-      ? {
-          vibrancy: "sidebar",
-          visualEffectState: "active",
-        }
-      : {}),
     icon: appIconPath,
     webPreferences: {
       nodeIntegration: false,
@@ -394,11 +387,26 @@ function createMainWindow() {
 
   mainWin.loadURL("http://localhost:8000");
 
-  mainWin.once("ready-to-show", () => {
+  let mainUiShown = false;
+  const revealMainWindow = () => {
+    if (mainUiShown) return;
+    mainUiShown = true;
     loadingWin?.destroy();
     loadingWin = null;
-    mainWin?.show();
+    if (mainWin && !mainWin.isDestroyed()) {
+      mainWin.show();
+    }
+  };
+
+  // Wait until React paints (skeleton or layout) so we don't flash an empty
+  // window; fall back after a timeout if the renderer never signals.
+  ipcMain.once("desktop:renderer-ready", () => {
+    revealMainWindow();
   });
+
+  setTimeout(() => {
+    revealMainWindow();
+  }, 45_000);
 
   const saveState = () => {
     if (!mainWin || mainWin.isDestroyed()) return;

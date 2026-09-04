@@ -1,5 +1,5 @@
 /* eslint-disable i18next/no-literal-string */
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { FileDiff, RotateCcw, ChevronDown, ChevronUp } from "lucide-react";
 
 import type { OpenHandsEvent } from "#/types/agent-server/core";
@@ -8,6 +8,7 @@ import { useConversationStore } from "#/stores/conversation-store";
 import ConversationService from "#/api/conversation-service/conversation-service.api";
 import { useSendMessage } from "#/hooks/use-send-message";
 import { toFilesTabPath, toReviewRelativePath } from "#/utils/path-utils";
+import { useChatScrollFocusTarget } from "#/hooks/use-chat-scroll-file-focus";
 
 export interface TurnFileChange {
   path: string;
@@ -272,6 +273,33 @@ export function collectTurnChangeSummaries(
   return { completed, live };
 }
 
+/** Open the Review tab with only this turn's files (Codex-style tree). */
+export function openTurnReview(
+  summary: TurnChangeSummary,
+  path?: string,
+): void {
+  const store = useConversationStore.getState();
+  const workingDir =
+    ConversationService.getCurrentConversation()?.workspace?.working_dir;
+  const turnFiles = summary.files.map((file) => ({
+    path: toReviewRelativePath(file.path, workingDir) || file.path,
+    before: file.before,
+    after: file.after,
+  }));
+  const targetRaw = path ?? summary.files[0]?.path ?? null;
+  const targetPath = targetRaw
+    ? toReviewRelativePath(targetRaw, workingDir) || targetRaw
+    : (turnFiles[0]?.path ?? null);
+
+  store.setSelectedTab("commits");
+  store.setCommitsReviewTurnFiles(turnFiles);
+  store.setCommitsReviewFilterPaths(turnFiles.map((file) => file.path));
+  store.setCommitsAutoExpandSection("uncommitted");
+  store.setCommitsAutoExpandPath(targetPath);
+  store.setHasRightPanelToggled(true);
+  store.setIsRightPanelShown(true);
+}
+
 export function TurnChangesCard({
   summary,
   live = false,
@@ -284,6 +312,7 @@ export function TurnChangesCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const { send } = useSendMessage();
+  const cardRef = React.useRef<HTMLElement>(null);
   const visibleFiles = expanded ? summary.files : summary.files.slice(0, 3);
   const hiddenCount = summary.files.length - 3;
 
@@ -292,31 +321,29 @@ export function TurnChangesCard({
     [summary.files],
   );
 
+  const reviewFocusKey = useMemo(
+    () =>
+      `turn-review:${summary.files.map((file) => file.path).join("|")}:${summary.additions}:${summary.deletions}`,
+    [summary],
+  );
+
+  // Final (non-live) cards participate in chat scroll → Review sync.
+  useChatScrollFocusTarget(
+    cardRef,
+    !live && summary.files.length > 0
+      ? {
+          kind: "turn-review",
+          key: reviewFocusKey,
+          open: () => openTurnReview(summary),
+        }
+      : null,
+  );
+
   const displayWorkingDir =
     ConversationService.getCurrentConversation()?.workspace?.working_dir;
 
   const openReview = (path?: string) => {
-    const store = useConversationStore.getState();
-    const workingDir =
-      ConversationService.getCurrentConversation()?.workspace?.working_dir;
-    const turnFiles = summary.files.map((file) => ({
-      path: toReviewRelativePath(file.path, workingDir) || file.path,
-      before: file.before,
-      after: file.after,
-    }));
-    const targetRaw = path ?? summary.files[0]?.path ?? null;
-    const targetPath = targetRaw
-      ? toReviewRelativePath(targetRaw, workingDir) || targetRaw
-      : (turnFiles[0]?.path ?? null);
-
-    // Review tab with ONLY this turn's files (Codex-style tree + inline diffs).
-    store.setSelectedTab("commits");
-    store.setCommitsReviewTurnFiles(turnFiles);
-    store.setCommitsReviewFilterPaths(turnFiles.map((file) => file.path));
-    store.setCommitsAutoExpandSection("uncommitted");
-    store.setCommitsAutoExpandPath(targetPath);
-    store.setHasRightPanelToggled(true);
-    store.setIsRightPanelShown(true);
+    openTurnReview(summary, path);
   };
 
   const undo = () => {
@@ -332,12 +359,14 @@ export function TurnChangesCard({
 
   return (
     <section
+      ref={cardRef}
       className={
         compact
           ? "overflow-hidden rounded-2xl border border-[var(--oh-border)] bg-[var(--oh-surface-raised)] text-sm shadow-lg"
           : "my-3 overflow-hidden rounded-xl border border-[var(--oh-border)] bg-[var(--oh-surface-raised)] text-sm"
       }
       data-testid={live ? "live-turn-changes-card" : "turn-changes-card"}
+      data-chat-focus={live ? undefined : "turn-review"}
     >
       <header
         className={`flex items-center gap-3 ${compact ? "p-2.5" : "border-b border-[var(--oh-border)] p-3"}`}

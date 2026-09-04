@@ -57,7 +57,7 @@ export const BrandButton = forwardRef<
       className={cn(
         formControlButtonClassName,
         variant === "primary" &&
-          "bg-primary text-[var(--oh-color-base)] hover:opacity-80 disabled:bg-[var(--oh-interactive-hover)] disabled:text-[var(--oh-muted)] disabled:opacity-100",
+          "border border-white/20 bg-primary text-[var(--oh-accent-foreground)] hover:bg-[#4a4a4a] hover:opacity-100 disabled:bg-[var(--oh-interactive-hover)] disabled:text-[var(--oh-muted)] disabled:opacity-100",
         variant === "secondary" &&
           "border border-[var(--oh-border)] bg-base-secondary text-white hover:bg-surface-raised",
         variant === "tertiary" &&

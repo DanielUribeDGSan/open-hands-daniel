@@ -8,7 +8,6 @@ import {
   Settings,
   PanelsTopLeft,
 } from "lucide-react";
-import OpenHandsLogo from "#/assets/branding/openhands-logo.svg?react";
 import { NavigationLink } from "#/components/shared/navigation-link";
 import {
   automationListPath,
@@ -32,8 +31,6 @@ import { SidebarConversationList } from "./sidebar-conversation-list";
 import { SidebarOnboardingChecklist } from "./sidebar-onboarding-checklist";
 import AutomationsIcon from "#/icons/automations.svg?react";
 import {
-  SIDEBAR_COLLAPSE_TOGGLE_OVERLAY_CLASS,
-  SIDEBAR_COLLAPSED_LOGO_WRAPPER_CLASS,
   SIDEBAR_ICON_BUTTON_CLASS,
   SIDEBAR_ICON_SLOT_CLASS,
   sidebarHeaderRowClassName,
@@ -44,6 +41,8 @@ import {
 import { useCanvasExtensionsRuntime } from "#/components/features/canvas-extensions/canvas-extensions-runtime";
 
 const ICON_SIZE = 18;
+const COLLAPSED_ICON_SIZE = 24;
+const COLLAPSED_EXPAND_ICON_SIZE = 20;
 const SIDEBAR_LOGO_WIDTH = 34;
 const SIDEBAR_LOGO_HEIGHT = Math.round((SIDEBAR_LOGO_WIDTH * 30) / 46);
 
@@ -92,6 +91,7 @@ export function SidebarRailBody({
   const { pages: canvasExtensionPages } = useCanvasExtensionsRuntime();
   const backendCloseTimerRef = collapsedBackendCloseTimer;
   const { isPinnedRoute, togglePinnedRoute } = usePinnedHomeRoute();
+  const iconSize = collapsed ? COLLAPSED_ICON_SIZE : ICON_SIZE;
 
   const buildPinAction = (path: string, testId: string) => {
     const pinned = isPinnedRoute(path);
@@ -108,41 +108,30 @@ export function SidebarRailBody({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className={sidebarHeaderRowClassName(collapsed)}>
-        <div
-          className={cn(
-            collapsed && showCollapseToggle
-              ? SIDEBAR_COLLAPSED_LOGO_WRAPPER_CLASS
-              : "flex min-w-0 shrink-0 items-center",
-          )}
-        >
-          <div
+        {collapsed && showCollapseToggle ? (
+          <button
+            type="button"
+            data-testid="sidebar-collapse-toggle"
+            aria-pressed={collapsed}
+            aria-label={collapseToggleLabel}
+            onClick={onExpand}
             className={cn(
-              collapsed &&
-                showCollapseToggle &&
-                "flex h-full w-full items-center justify-start pl-2.5 transition-opacity duration-150",
-              collapsed && showCollapsedExpandButton && "opacity-0",
+              sidebarNavRowClassName({ collapsed: true }),
+              "cursor-pointer",
+              showCollapsedExpandButton
+                ? "opacity-100 pointer-events-auto"
+                : "opacity-0 pointer-events-none",
             )}
           >
-            {/* Mascot was removed from here to be placed at the bottom */}
-          </div>
-          {collapsed && showCollapseToggle ? (
-            <button
-              type="button"
-              data-testid="sidebar-collapse-toggle"
-              aria-pressed={collapsed}
-              aria-label={collapseToggleLabel}
-              onClick={onExpand}
-              className={cn(
-                SIDEBAR_COLLAPSE_TOGGLE_OVERLAY_CLASS,
-                showCollapsedExpandButton
-                  ? "opacity-100 pointer-events-auto"
-                  : "opacity-0 pointer-events-none",
-              )}
-            >
-              <ChevronRight width={14} height={14} />
-            </button>
-          ) : null}
-        </div>
+            <SidebarCollapsedIconSlot active={false}>
+              <ChevronRight
+                width={COLLAPSED_EXPAND_ICON_SIZE}
+                height={COLLAPSED_EXPAND_ICON_SIZE}
+                strokeWidth={2.25}
+              />
+            </SidebarCollapsedIconSlot>
+          </button>
+        ) : null}
         {!collapsed && showCollapseToggle ? (
           <button
             type="button"
@@ -184,7 +173,7 @@ export function SidebarRailBody({
           label={t(I18nKey.SIDEBAR$NEW_CHAT)}
           testId="sidebar-conversations-link"
           collapsed={collapsed}
-          icon={<Plus width={ICON_SIZE} height={ICON_SIZE} />}
+          icon={<Plus width={iconSize} height={iconSize} />}
         />
         <SidebarNavLink
           to={CUSTOMIZE_PATH}
@@ -199,8 +188,8 @@ export function SidebarRailBody({
           icon={
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              width={ICON_SIZE}
-              height={ICON_SIZE}
+              width={iconSize}
+              height={iconSize}
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -232,7 +221,7 @@ export function SidebarRailBody({
             label={getInterfaceCopy().sidebarLabel}
             testId="sidebar-automations-link"
             collapsed={collapsed}
-            icon={<AutomationsIcon width={ICON_SIZE} height={ICON_SIZE} />}
+            icon={<AutomationsIcon width={iconSize} height={iconSize} />}
             pinAction={buildPinAction(
               automationListPath(),
               "sidebar-pin-home-toggle-automations",
@@ -246,7 +235,7 @@ export function SidebarRailBody({
             label={page.contribution.nav_label || page.contribution.title}
             testId={`sidebar-canvas-extension-${page.extension.name}-${page.contribution.id}`}
             collapsed={collapsed}
-            icon={<PanelsTopLeft width={ICON_SIZE} height={ICON_SIZE} />}
+            icon={<PanelsTopLeft width={iconSize} height={iconSize} />}
           />
         ))}
       </nav>
@@ -273,7 +262,7 @@ export function SidebarRailBody({
               <SidebarCollapsedIconSlot
                 active={currentPath.startsWith("/settings")}
               >
-                <Settings width={ICON_SIZE} height={ICON_SIZE} />
+                <Settings width={iconSize} height={iconSize} />
               </SidebarCollapsedIconSlot>
               <span className={sidebarNavLabelClassName(true)}>
                 {t(I18nKey.SIDEBAR$SETTINGS)}
@@ -313,12 +302,15 @@ export function SidebarRailBody({
               )}
             >
               <SidebarCollapsedIconSlot active={collapsedBackendPopoverOpen}>
-                <span className="relative inline-flex size-[18px] shrink-0 items-center justify-center">
+                <span
+                  className="relative inline-flex shrink-0 items-center justify-center"
+                  style={{ width: iconSize, height: iconSize }}
+                >
                   <BackendStatusDot
                     isConnected={activeBackendHealth?.isConnected ?? null}
                     className="absolute -left-0.5 -top-0.5 z-[1] pointer-events-none"
                   />
-                  <Server width={ICON_SIZE} height={ICON_SIZE} />
+                  <Server width={iconSize} height={iconSize} />
                 </span>
               </SidebarCollapsedIconSlot>
               <span className={sidebarNavLabelClassName(true)}>
