@@ -736,11 +736,11 @@ app.whenReady().then(async () => {
   nativeTheme.themeSource = "dark";
 
   // Set the dock icon explicitly on macOS so `npm run desktop` shows the
-  // OpenHands logo instead of the default Electron logo. In a packaged
-  // build the .app bundle's icon.icns already provides this, but
-  // app.dock.setIcon() is a cheap idempotent override that also fixes
-  // the dev workflow.
-  if (process.platform === "darwin" && app.dock && existsSync(appIconPath)) {
+  // OpenHands logo instead of the default Electron logo. We only do this
+  // in dev mode because passing a raw .png to app.dock.setIcon() skips macOS's
+  // standard padding, making the icon look artificially large in the dock.
+  // In a packaged build, the .app bundle's icon.icns is used automatically.
+  if (!app.isPackaged && process.platform === "darwin" && app.dock && existsSync(appIconPath)) {
     app.dock.setIcon(nativeImage.createFromPath(appIconPath));
   }
 

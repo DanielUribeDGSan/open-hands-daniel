@@ -377,6 +377,7 @@ const config = {
   //
   mac: {
     category: "public.app-category.developer-tools",
+    icon: "build-resources/icon.png",
     target: [
       {
         target: "dmg",
@@ -386,8 +387,8 @@ const config = {
         ],
       },
     ],
-    // Icon auto-discovered from directories.buildResources/icon.icns
-    // (committed; regenerate with `npm run generate-icons`).
+    // electron-builder will natively convert icon.png to a valid .icns file
+    // during the build using macOS's built-in iconutil.
   },
 
   dmg: {
