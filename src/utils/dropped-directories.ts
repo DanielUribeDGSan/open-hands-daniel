@@ -12,9 +12,9 @@ export interface DesktopFolderApi {
   showOpenDirectory: (options?: {
     multiple?: boolean;
   }) => Promise<string[]>;
-  getSshHosts?: () => Promise<{name: string, hostName: string, user: string, identityFile: string, port?: number}[]>;
-  mountSshWorkspace?: (host: {name: string, hostName: string, user: string, identityFile: string, port?: number}, remotePath: string) => Promise<string | null>;
-  connectSsh?: (host: {name: string, hostName: string, user: string, identityFile: string, port?: number}) => Promise<{success: boolean}>;
+  getSshHosts?: () => Promise<{name: string, hostName: string, user: string, identityFile: string, port?: number, password?: string}[]>;
+  mountSshWorkspace?: (host: {name: string, hostName: string, user: string, identityFile: string, port?: number, password?: string}, remotePath: string, targetDirName?: string, conversationId?: string) => Promise<string | null>;
+  connectSsh?: (host: {name: string, hostName: string, user: string, identityFile: string, port?: number, password?: string}) => Promise<{success: boolean}>;
   disconnectSsh?: () => Promise<{success: boolean}>;
   listRemoteFiles?: (remotePath: string) => Promise<{name: string, path: string, isDirectory: boolean}[]>;
 }

@@ -6,6 +6,7 @@ export interface SshHost {
   user: string;
   identityFile: string;
   port?: number;
+  password?: string;
 }
 
 interface RemoteSshState {

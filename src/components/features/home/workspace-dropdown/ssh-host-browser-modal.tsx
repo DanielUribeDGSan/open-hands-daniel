@@ -36,6 +36,8 @@ export function SshHostBrowserModal({
   const [loading, setLoading] = useState(false);
   const [connecting, setConnecting] = useState<string | null>(null);
   const [sshfsError, setSshfsError] = useState(false);
+  const [promptPasswordFor, setPromptPasswordFor] = useState<SshHost | null>(null);
+  const [passwordInput, setPasswordInput] = useState("");
   const { setConnectedHost } = useRemoteSshStore();
   const { navigate } = useNavigation();
 
@@ -59,13 +61,21 @@ export function SshHostBrowserModal({
       if (result && result.success) {
         setConnectedHost(host);
         onClose();
+        setPromptPasswordFor(null);
+        setPasswordInput("");
         toast.success(`Conectado a ${host.name}`);
         navigate("/");
       } else {
         toast.error("Failed to connect to SSH server");
       }
     } catch (error: any) {
-      toast.error(error.message || "Failed to connect to SSH server");
+      const msg = error.message || "";
+      if (msg.toLowerCase().includes("auth") || msg.toLowerCase().includes("methods failed") || msg.toLowerCase().includes("permission denied")) {
+        setPromptPasswordFor(host);
+        toast.error(`Authentication required for ${host.name}`);
+      } else {
+        toast.error(msg || "Failed to connect to SSH server");
+      }
     } finally {
       setConnecting(null);
     }
@@ -123,6 +133,35 @@ export function SshHostBrowserModal({
                     </BrandButton>
                   </div>
                 </div>
+              </div>
+            </div>
+           ) : promptPasswordFor ? (
+            <div className="flex flex-col gap-4 p-4 rounded-lg border border-[var(--oh-border)] bg-[#1e1e1e]">
+              <h3 className="text-sm font-semibold text-white">Password required for {promptPasswordFor.name}</h3>
+              <input
+                type="password"
+                className="w-full bg-[var(--oh-background)] border border-[var(--oh-border)] rounded px-3 py-2 text-sm text-white placeholder:text-zinc-600 outline-none focus:border-blue-500 transition-colors"
+                placeholder="Enter SSH password..."
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && passwordInput) {
+                    void handleConnect({ ...promptPasswordFor, password: passwordInput });
+                  }
+                }}
+                autoFocus
+              />
+              <div className="flex justify-end gap-2 mt-2">
+                <BrandButton variant="secondary" onClick={() => setPromptPasswordFor(null)}>
+                  Cancel
+                </BrandButton>
+                <BrandButton 
+                  variant="primary" 
+                  isDisabled={!passwordInput || connecting !== null}
+                  onClick={() => void handleConnect({ ...promptPasswordFor, password: passwordInput })}
+                >
+                  {connecting ? "Connecting..." : "Connect"}
+                </BrandButton>
               </div>
             </div>
            ) : (

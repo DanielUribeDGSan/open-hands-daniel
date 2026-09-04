@@ -54,6 +54,8 @@ const __dirname = dirname(__filename);
 // Global SSH state
 let sshClient = null;
 let sftpSession = null;
+let activeControlMasterSocket = null;
+let activeControlMasterUserHost = null;
 
 // ── Path resolution ───────────────────────────────────────────────────────────
 // Packaged (directories.app: 'electron'): scripts/config/build are SIBLINGS of
@@ -679,8 +681,29 @@ ipcMain.handle("desktop:mount-ssh-workspace", async (event, host, remotePath, ta
     try { execSync(`mutagen sync terminate ${syncName}`, { stdio: 'ignore' }); } catch (e) {}
     
     const target = `${host.name}:${remotePath}`;
+    
+    let env = { ...process.env };
+    let wrapperPath;
+    if (host.password) {
+      const { join } = await import("node:path");
+      const fs = await import("node:fs");
+      const socketPath = join(os.tmpdir(), `openhands_ssh_${sanitizedHostName}.sock`);
+      wrapperPath = join(os.tmpdir(), `openhands_mutagen_ssh_${sanitizedHostName}.sh`);
+      
+      const wrapperScript = `#!/bin/bash
+exec ssh -o ControlMaster=auto -o ControlPath="${socketPath}" -o StrictHostKeyChecking=no "$@"
+`;
+      fs.writeFileSync(wrapperPath, wrapperScript, { mode: 0o700 });
+      env.MUTAGEN_SSH_PATH = wrapperPath;
+    }
+    
     const cmd = `mutagen sync create --name=${syncName} --ignore-vcs --symlink-mode=ignore --ignore="node_modules" --ignore=".git" "${mountPath}" "${target}"`;
-    execSync(cmd);
+    execSync(cmd, { env });
+    
+    if (wrapperPath) {
+      const fs = await import("node:fs");
+      try { fs.unlinkSync(wrapperPath); } catch (e) {}
+    }
     
     return mountPath;
   } catch (error) {
@@ -700,6 +723,22 @@ ipcMain.handle("desktop:connect-ssh", async (event, host) => {
     try {
       const conn = new Client();
       const os = await import("node:os");
+      const { execSync } = await import("node:child_process");
+      const fs = await import("node:fs");
+      const { join } = await import("node:path");
+      
+      const connectConfig = {
+        host: host.hostName || host.name,
+        port: host.port || 22,
+        username: host.user || process.env.USER,
+        privateKey: host.identityFile ? fs.readFileSync(host.identityFile.replace(/^~/, os.homedir())) : undefined,
+        agent: process.env.SSH_AUTH_SOCK
+      };
+
+      if (host.password) {
+        connectConfig.password = host.password;
+        // Don't try private key if we explicitly provided a password, let it fallback to password auth
+      }
       
       conn.on('ready', () => {
         conn.sftp((err, sftp) => {
@@ -709,17 +748,68 @@ ipcMain.handle("desktop:connect-ssh", async (event, host) => {
           }
           sshClient = conn;
           sftpSession = sftp;
+          
+          // If a password was provided, we need to establish a ControlMaster socket
+          // using expect so that Mutagen can piggyback on this authenticated connection
+          // without needing a password.
+          if (host.password) {
+            try {
+              const tmpdir = os.tmpdir();
+              const sanitizedHostName = host.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+              const socketPath = join(tmpdir, `openhands_ssh_${sanitizedHostName}.sock`);
+              const expectScriptPath = join(tmpdir, `openhands_ssh_${sanitizedHostName}.exp`);
+              
+              // Clean up any old socket
+              if (fs.existsSync(socketPath)) {
+                try { execSync(`ssh -S "${socketPath}" -O exit "${connectConfig.username}@${connectConfig.host}"`, { stdio: 'ignore' }); } catch (e) {}
+                try { fs.unlinkSync(socketPath); } catch (e) {}
+              }
+
+              const expectScript = `#!/usr/bin/expect -f
+set timeout 30
+set user [lindex $argv 0]
+set host [lindex $argv 1]
+set port [lindex $argv 2]
+set password [lindex $argv 3]
+set socket [lindex $argv 4]
+
+spawn ssh -f -N -M -S $socket -p $port -o StrictHostKeyChecking=no $user@$host
+expect {
+    "*assword:*" {
+        send "$password\\r"
+        exp_continue
+    }
+    "*yes/no*" {
+        send "yes\\r"
+        exp_continue
+    }
+    eof {
+        exit 0
+    }
+}
+`;
+              fs.writeFileSync(expectScriptPath, expectScript, { mode: 0o700 });
+              
+              // Run expect script to establish the background socket
+              execSync(`expect "${expectScriptPath}" "${connectConfig.username}" "${connectConfig.host}" "${connectConfig.port}" "${host.password.replace(/"/g, '\\"')}" "${socketPath}"`);
+              
+              activeControlMasterSocket = socketPath;
+              activeControlMasterUserHost = `${connectConfig.username}@${connectConfig.host}`;
+              
+              // Clean up the script for security
+              try { fs.unlinkSync(expectScriptPath); } catch (e) {}
+            } catch (e) {
+              console.error("Failed to establish ControlMaster socket with expect:", e);
+              // We don't reject here because the primary SFTP connection succeeded,
+              // but mutagen might fail later if it can't use the socket.
+            }
+          }
+          
           resolve({ success: true });
         });
       }).on('error', (err) => {
         reject(err);
-      }).connect({
-        host: host.hostName || host.name,
-        port: host.port || 22,
-        username: host.user || process.env.USER,
-        privateKey: host.identityFile ? readFileSync(host.identityFile.replace(/^~/, os.homedir())) : undefined,
-        agent: process.env.SSH_AUTH_SOCK
-      });
+      }).connect(connectConfig);
     } catch (e) {
       reject(e);
     }
@@ -731,6 +821,16 @@ ipcMain.handle("desktop:disconnect-ssh", async () => {
     sshClient.end();
     sshClient = null;
     sftpSession = null;
+  }
+  if (activeControlMasterSocket && activeControlMasterUserHost) {
+    try {
+      const { execSync } = await import("node:child_process");
+      execSync(`ssh -S "${activeControlMasterSocket}" -O exit "${activeControlMasterUserHost}"`, { stdio: 'ignore' });
+    } catch (e) {
+      console.error("Failed to close ControlMaster socket", e);
+    }
+    activeControlMasterSocket = null;
+    activeControlMasterUserHost = null;
   }
   return { success: true };
 });
