@@ -616,16 +616,28 @@ export function ChatInterface() {
 
     const timestamp = new Date().toISOString();
 
+    // Filter out both remote folders and local folders (which only have isFolder) from being uploaded as files
+    const actualFilesToUpload = files.filter(f => !(f as any).isRemoteFolder && !(f as any).isFolder);
+    // Include BOTH remote folders and local folders in folderFiles so they get appended to the prompt as references
+    const folderFiles = files.filter(f => (f as any).isRemoteFolder || (f as any).isFolder);
+
     const { skipped_files: skippedFiles, uploaded_files: uploadedFiles } =
-      files.length > 0
-        ? await uploadFiles({ conversationId: conversationId!, files })
+      actualFilesToUpload.length > 0
+        ? await uploadFiles({ conversationId: conversationId!, files: actualFilesToUpload })
         : { skipped_files: [], uploaded_files: [] };
 
     skippedFiles.forEach((f) => displayErrorToast(f.reason));
 
     const filePrompt = `${t(I18nKey.CHAT_INTERFACE$AUGMENTED_PROMPT_FILES_TITLE)}: ${uploadedFiles.join("\n\n")}`;
-    const prompt =
-      uploadedFiles.length > 0 ? `${content}\n\n${filePrompt}` : content;
+    
+    let finalPrompt = content;
+    if (folderFiles.length > 0) {
+      const folderPaths = folderFiles.map(f => (f as any).folderPath || f.name).join("\n");
+      finalPrompt += `\n\nDirectorio de referencia:\n${folderPaths}`;
+    }
+    if (uploadedFiles.length > 0) {
+      finalPrompt += `\n\n${filePrompt}`;
+    }
 
     // Enqueue the message into the local pending queue with status "sending"
     // so the user immediately sees it in the chat with a faded treatment. The
@@ -639,7 +651,7 @@ export function ChatInterface() {
       // "Files uploaded: …" block) and is what the echo will be matched
       // against. They're different when there are file attachments.
       text: content,
-      content: prompt,
+      content: finalPrompt,
       imageUrls,
       fileUrls: uploadedFiles,
       timestamp,
@@ -652,7 +664,7 @@ export function ChatInterface() {
 
     try {
       await send(
-        createChatMessage(prompt, imageUrls, uploadedFiles, timestamp),
+        createChatMessage(finalPrompt, imageUrls, uploadedFiles, timestamp),
       );
     } catch (sendError) {
       const sendErrorMessage =

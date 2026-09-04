@@ -88,7 +88,7 @@ export function UserMessageBody({
           allowHtml={false}
           components={chatBubbleMarkdownComponents}
         >
-          {message}
+          {message.replace(/\n\nDirectorio de referencia:[\s\S]*?(?=\n\n|$)/g, "")}
         </MarkdownRenderer>
       </div>
 

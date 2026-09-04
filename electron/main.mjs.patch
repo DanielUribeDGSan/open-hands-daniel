@@ -1,0 +1,160 @@
+--- electron/main.mjs
++++ electron/main.mjs
+@@ -42,6 +42,10 @@
+   nativeTheme,
+   shell,
+ } from "electron";
++import { Client } from 'ssh2';
++
++// Global state for SSH File Explorer
++let sshClient = null;
++let sftpSession = null;
+ import { chmodSync, existsSync, statSync } from "node:fs";
+ import { dirname, join } from "node:path";
+ import { fileURLToPath, pathToFileURL } from "node:url";
+@@ -600,6 +604,115 @@
+   return result.filePaths ?? [];
+ });
+ 
++ipcMain.handle("desktop:get-ssh-hosts", async (event) => {
++  if (!mainWin || mainWin.isDestroyed() || event.sender !== mainWin.webContents) {
++    return [];
++  }
++  try {
++    const { parse } = await import("ssh-config");
++    const fs = await import("node:fs");
++    const os = await import("node:os");
++    const configPath = join(os.homedir(), ".ssh", "config");
++    if (!fs.existsSync(configPath)) {
++      return [];
++    }
++    const configStr = fs.readFileSync(configPath, "utf-8");
++    const config = parse(configStr);
++    
++    const hosts = [];
++    for (const line of config) {
++      if (line.type === 1 && line.param === "Host" && !line.value.includes("*")) {
++        const hostDef = { name: line.value };
++        for (const child of line.config) {
++          if (child.param === "HostName") hostDef.hostName = child.value;
++          if (child.param === "User") hostDef.user = child.value;
++          if (child.param === "IdentityFile") hostDef.identityFile = child.value;
++          if (child.param === "Port") hostDef.port = parseInt(child.value, 10);
++        }
++        hosts.push(hostDef);
++      }
++    }
++    return hosts;
++  } catch (error) {
++    console.error("Failed to parse ssh config", error);
++    return [];
++  }
++});
++
++ipcMain.handle("desktop:mount-ssh-workspace", async (event, host, remotePath) => {
++  if (!mainWin || mainWin.isDestroyed() || event.sender !== mainWin.webContents) {
++    return null;
++  }
++  try {
++    const { execSync } = await import("node:child_process");
++    const os = await import("node:os");
++    const tmpdir = os.tmpdir();
++    const mountPath = join(tmpdir, `pair-bot-ssh-${host.name}`);
++    
++    if (!existsSync(mountPath)) {
++      import("node:fs").then(fs => fs.mkdirSync(mountPath, { recursive: true }));
++    }
++    
++    const sanitizedHostName = host.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
++    const syncName = `pair-bot-ssh-${sanitizedHostName}`;
++    
++    try { execSync(`mutagen sync terminate ${syncName}`, { stdio: 'ignore' }); } catch (e) {}
++    
++    const target = `${host.name}:${remotePath}`;
++    const cmd = `mutagen sync create --name=${syncName} --ignore-vcs --symlink-mode=ignore --ignore="node_modules" --ignore=".git" "${mountPath}" "${target}"`;
++    execSync(cmd);
++    
++    return mountPath;
++  } catch (error) {
++    console.error("Failed to mount ssh workspace", error);
++    throw new Error(`Failed to mount SSH workspace for ${host.name}: ${error.message}`);
++  }
++});
++
++ipcMain.handle("desktop:connect-ssh", async (event, host) => {
++  if (sshClient) {
++    sshClient.end();
++    sshClient = null;
++    sftpSession = null;
++  }
++  
++  return new Promise(async (resolve, reject) => {
++    try {
++      const conn = new Client();
++      const os = await import("node:os");
++      
++      conn.on('ready', () => {
++        conn.sftp((err, sftp) => {
++          if (err) {
++            conn.end();
++            return reject(err);
++          }
++          sshClient = conn;
++          sftpSession = sftp;
++          resolve({ success: true });
++        });
++      }).on('error', (err) => {
++        reject(err);
++      }).connect({
++        host: host.hostName || host.name,
++        port: host.port || 22,
++        username: host.user || process.env.USER,
++        privateKey: host.identityFile ? readFileSync(host.identityFile.replace(/^~/, os.homedir())) : undefined,
++        agent: process.env.SSH_AUTH_SOCK
++      });
++    } catch (e) {
++      reject(e);
++    }
++  });
++});
++
++ipcMain.handle("desktop:disconnect-ssh", async () => {
++  if (sshClient) {
++    sshClient.end();
++    sshClient = null;
++    sftpSession = null;
++  }
++  return { success: true };
++});
++
++ipcMain.handle("desktop:list-remote-files", async (event, remotePath) => {
++  if (!sftpSession) {
++    throw new Error("Not connected to SSH");
++  }
++  return new Promise((resolve, reject) => {
++    sftpSession.readdir(remotePath, (err, list) => {
++      if (err) {
++        return reject(err);
++      }
++      const filteredList = list.filter(item => item.filename !== '.' && item.filename !== '..');
++      const entries = filteredList.map(item => {
++        const isDir = item.attrs.isDirectory();
++        return {
++          name: item.filename,
++          path: remotePath.endsWith('/') ? `${remotePath}${item.filename}` : `${remotePath}/${item.filename}`,
++          isDirectory: isDir,
++        };
++      });
++      entries.sort((a, b) => {
++        if (a.isDirectory && !b.isDirectory) return -1;
++        if (!a.isDirectory && b.isDirectory) return 1;
++        return a.name.localeCompare(b.name);
++      });
++      resolve(entries);
++    });
++  });
++});
++
+ ipcMain.handle("desktop:is-directory", (event, targetPath) => {
+   if (
+     !mainWin ||

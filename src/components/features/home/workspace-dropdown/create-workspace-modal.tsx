@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { FolderPlus, X } from "lucide-react";
+import { FolderPlus, Server, X } from "lucide-react";
 import toast from "react-hot-toast";
 
 import { BaseModalTitle } from "#/components/shared/modals/confirmation-modals/base-modal";
@@ -384,14 +384,16 @@ export function CreateWorkspaceModal({
               <span className="text-sm font-medium text-white">
                 {t(I18nKey.HOME$SOURCE_FOLDERS)}
               </span>
-              <button
-                type="button"
-                data-testid="create-workspace-browse"
-                onClick={() => void handleBrowse()}
-                className="cursor-pointer text-xs text-[var(--oh-text-secondary)] hover:text-white"
-              >
-                {t(I18nKey.HOME$BROWSE_FOLDERS)}
-              </button>
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  data-testid="create-workspace-browse"
+                  onClick={() => void handleBrowse()}
+                  className="cursor-pointer text-xs text-[var(--oh-text-secondary)] hover:text-white"
+                >
+                  {t(I18nKey.HOME$BROWSE_FOLDERS)}
+                </button>
+              </div>
             </div>
 
             <div

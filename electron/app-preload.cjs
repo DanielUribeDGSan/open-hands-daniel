@@ -24,6 +24,14 @@ contextBridge.exposeInMainWorld("desktop", {
   /** True when `path` exists and is a directory on disk. */
   isDirectory: (path) => ipcRenderer.invoke("desktop:is-directory", path),
 
+  getSshHosts: () => ipcRenderer.invoke("desktop:get-ssh-hosts"),
+  
+  mountSshWorkspace: (host, remotePath) => ipcRenderer.invoke("desktop:mount-ssh-workspace", host, remotePath),
+  
+  connectSsh: (host) => ipcRenderer.invoke("desktop:connect-ssh", host),
+  disconnectSsh: () => ipcRenderer.invoke("desktop:disconnect-ssh"),
+  listRemoteFiles: (remotePath) => ipcRenderer.invoke("desktop:list-remote-files", remotePath),
+
   /** Open a native folder picker. Returns selected absolute paths (or []). */
   showOpenDirectory: (options) =>
     ipcRenderer.invoke("desktop:show-open-directory", options ?? {}),

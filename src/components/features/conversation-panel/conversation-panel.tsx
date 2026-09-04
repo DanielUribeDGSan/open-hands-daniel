@@ -21,6 +21,10 @@ import { useClickOutsideElement } from "#/hooks/use-click-outside-element";
 import { Provider } from "#/types/settings";
 import type { LocalWorkspace } from "#/types/workspace";
 import { useUpdateConversation } from "#/hooks/mutation/use-update-conversation";
+import { RemoteFileTree } from "./remote-file-tree";
+import { useRemoteSshStore } from "#/store/use-remote-ssh-store";
+import { SshHostBrowserModal } from "#/components/features/home/workspace-dropdown/ssh-host-browser-modal";
+import { Server } from "lucide-react";
 import {
   displayErrorToast,
   displaySuccessToast,
@@ -100,6 +104,8 @@ export function ConversationPanel({
   const { conversationId: currentConversationId, navigate } = useNavigation();
   const { backend: activeBackend } = useActiveBackend();
   const backendScopedPath = useBackendScopedPath();
+  const { connectedHost } = useRemoteSshStore();
+  const { workspaces: knownWorkspaces } = useResolvedWorkspaces();
   // Click-outside is only relevant in the legacy drawer mode where an
   // onClose handler is provided. When the panel is rendered inline (e.g.
   // as the always-visible conversation list pane), clicking outside should
@@ -116,6 +122,7 @@ export function ConversationPanel({
     confirmExitConversationModalVisible,
     setConfirmExitConversationModalVisible,
   ] = React.useState(false);
+  const [sshBrowserOpen, setSshBrowserOpen] = React.useState(false);
   const [confirmDeleteAllVisible, setConfirmDeleteAllVisible] =
     React.useState(false);
   const [workspacePendingRemoval, setWorkspacePendingRemoval] = React.useState<{
@@ -288,7 +295,7 @@ export function ConversationPanel({
     isFetchingNextPage,
     fetchNextPage,
   } = usePaginatedConversations();
-  const { workspaces: knownWorkspaces } = useResolvedWorkspaces();
+
 
   // Fetch in-progress start tasks
   const { data: startTasks } = useStartTasks();
@@ -1148,6 +1155,14 @@ export function ConversationPanel({
                 : t(I18nKey.SIDEBAR$CONVERSATIONS)}
             </span>
             <div className="ml-auto flex shrink-0 items-center gap-0.5">
+              <button
+                type="button"
+                onClick={() => setSshBrowserOpen(true)}
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--oh-muted)] transition-colors hover:bg-[var(--oh-surface-raised)] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--oh-border)]"
+                title="Conectar a Servidor SSH"
+              >
+                <Server className="h-4 w-4" />
+              </button>
               <ConversationPanelNewThreadPicker
                 backendKind={activeBackend.kind}
               />
@@ -1252,7 +1267,12 @@ export function ConversationPanel({
             )
           : null}
 
+        {!showInitialSkeleton && connectedHost ? (
+          <RemoteFileTree />
+        ) : null}
+
         {!showInitialSkeleton &&
+        !connectedHost &&
         !compact &&
         organizeMode === "grouped" &&
         orderedConversationGroups &&
@@ -1397,6 +1417,12 @@ export function ConversationPanel({
           onCancel={() => setConfirmExitConversationModalVisible(false)}
         />
       )}
+
+      <SshHostBrowserModal
+        isOpen={sshBrowserOpen}
+        onClose={() => setSshBrowserOpen(false)}
+        onAddAbsoluteFolders={() => {}}
+      />
     </div>
   );
 }

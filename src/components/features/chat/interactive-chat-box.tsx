@@ -60,13 +60,8 @@ export function InteractiveChatBox({
     const actualFiles = files.filter(f => !(f as any).isFolder);
     const folderFiles = files.filter(f => (f as any).isFolder);
     
-    let finalMessage = message;
-    if (folderFiles.length > 0) {
-      const folderPaths = folderFiles.map(f => (f as any).folderPath || f.name).join("\n");
-      finalMessage += `\n\nDirectorio de referencia:\n${folderPaths}`;
-    }
-    
-    onSubmit(finalMessage, imagesToEmbed, [...actualFiles, ...imagesAsFiles]);
+    // We pass both actual files and folder files to onSubmit now so the parent can handle the prompt augmentation
+    onSubmit(message, imagesToEmbed, [...actualFiles, ...imagesAsFiles, ...folderFiles]);
     clearAllFiles();
   });
   const handleAfterModel = useGoalInterceptor(conversationId, handleAfterGoal);

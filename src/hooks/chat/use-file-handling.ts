@@ -4,6 +4,9 @@ import {
   collectDroppedDirectories,
   droppedDirectoriesToFolderFiles,
 } from "#/utils/dropped-directories";
+import { useRemoteSshStore } from "#/store/use-remote-ssh-store";
+import { useCreateConversation } from "#/hooks/mutation/use-create-conversation";
+import { useParams } from "react-router";
 
 interface UseFileHandlingReturn {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
@@ -25,6 +28,7 @@ export const useFileHandling = (
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const { conversationId } = useParams();
 
   const addFiles = useCallback(
     (files: File[], options?: ChatAttachmentUploadOptions) => {
@@ -101,6 +105,32 @@ export const useFileHandling = (
 
       e.preventDefault();
       setIsDragOver(false);
+
+      const remoteFolderData = e.dataTransfer.getData("application/x-remote-folder");
+      if (remoteFolderData) {
+        try {
+          const node = JSON.parse(remoteFolderData);
+          const { connectedHost } = useRemoteSshStore.getState();
+          if (connectedHost) {
+            // Trigger mutagen sync to mount in the current workspace (or tmp if on landing page)
+            const targetConversationId = conversationId || undefined;
+            const targetDirName = targetConversationId ? node.name : undefined;
+            
+            window.desktop?.mountSshWorkspace?.(connectedHost, node.path, targetDirName, targetConversationId).then((mountPath) => {
+              if (mountPath) {
+                const fakeFile = new File([], node.name, { type: "directory" }) as any;
+                fakeFile.isFolder = true;
+                fakeFile.isRemoteFolder = true;
+                fakeFile.folderPath = mountPath;
+                addFiles([fakeFile]);
+              }
+            });
+            return;
+          }
+        } catch (err) {
+          console.error("Failed to parse remote folder drop", err);
+        }
+      }
 
       const filesToUpload: File[] = [];
 

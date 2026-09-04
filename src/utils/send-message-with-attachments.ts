@@ -40,9 +40,18 @@ export async function sendMessageWithAttachments(options: {
     images,
     imagesMarkedUploadAsFile,
   );
-  const filesToUpload = [...files, ...imagesAsFiles];
+  const allFiles = [...files, ...imagesAsFiles];
+  // Filter out both remote folders and local folders
+  const actualFilesToUpload = allFiles.filter(f => !(f as any).isRemoteFolder && !(f as any).isFolder);
+  const folderFiles = allFiles.filter(f => (f as any).isRemoteFolder || (f as any).isFolder);
 
-  const validation = validateFiles([...imagesToEmbed, ...filesToUpload]);
+  let finalContent = content;
+  if (folderFiles.length > 0) {
+    const folderPaths = folderFiles.map(f => (f as any).folderPath || f.name).join("\n");
+    finalContent += `\n\nDirectorio de referencia:\n${folderPaths}`;
+  }
+
+  const validation = validateFiles([...imagesToEmbed, ...actualFilesToUpload]);
   if (!validation.isValid) {
     throw new Error(validation.errorMessage ?? "Invalid attachments");
   }
@@ -54,15 +63,15 @@ export async function sendMessageWithAttachments(options: {
   const runtime = await resolveConversationRuntime(conversationId);
 
   const { skipped_files: skippedFiles, uploaded_files: uploadedFiles } =
-    filesToUpload.length > 0
-      ? await uploadFilesToConversation(conversationId, filesToUpload)
+    actualFilesToUpload.length > 0
+      ? await uploadFilesToConversation(conversationId, actualFilesToUpload)
       : { skipped_files: [], uploaded_files: [] };
 
   skippedFiles.forEach((file) => displayErrorToast(file.reason));
 
   const filePrompt = `${t(I18nKey.CHAT_INTERFACE$AUGMENTED_PROMPT_FILES_TITLE)}: ${uploadedFiles.join("\n\n")}`;
   const prompt =
-    uploadedFiles.length > 0 ? `${content}\n\n${filePrompt}` : content;
+    uploadedFiles.length > 0 ? `${finalContent}\n\n${filePrompt}` : finalContent;
 
   const timestamp = new Date().toISOString();
 

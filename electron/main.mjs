@@ -42,14 +42,18 @@ import {
   nativeTheme,
   shell,
 } from "electron";
-import { chmodSync, existsSync, statSync } from "node:fs";
+import { chmodSync, existsSync, statSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { Client } from "ssh2";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+// Global SSH state
+let sshClient = null;
+let sftpSession = null;
 
 // ── Path resolution ───────────────────────────────────────────────────────────
 // Packaged (directories.app: 'electron'): scripts/config/build are SIBLINGS of
@@ -597,6 +601,166 @@ ipcMain.handle("desktop:show-open-directory", async (event, options = {}) => {
 
   if (result.canceled) return [];
   return result.filePaths ?? [];
+});
+
+ipcMain.handle("desktop:get-ssh-hosts", async (event) => {
+  if (!mainWin || mainWin.isDestroyed() || event.sender !== mainWin.webContents) {
+    return [];
+  }
+  try {
+    const fs = await import("node:fs");
+    const os = await import("node:os");
+    const configPath = join(os.homedir(), ".ssh", "config");
+    if (!fs.existsSync(configPath)) {
+      return [];
+    }
+    const configStr = fs.readFileSync(configPath, "utf-8");
+    
+    const hosts = [];
+    let currentHost = null;
+    
+    const lines = configStr.split('\n');
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      
+      const parts = trimmed.split(/\s+/);
+      const key = parts[0].toLowerCase();
+      
+      if (key === 'host') {
+        const hostValue = parts.slice(1).join(' ');
+        if (!hostValue.includes('*')) {
+          currentHost = { name: hostValue };
+          hosts.push(currentHost);
+        } else {
+          currentHost = null;
+        }
+      } else if (currentHost) {
+        if (key === 'hostname') currentHost.hostName = parts.slice(1).join(' ');
+        if (key === 'user') currentHost.user = parts.slice(1).join(' ');
+        if (key === 'identityfile') currentHost.identityFile = parts.slice(1).join(' ');
+        if (key === 'port') currentHost.port = parseInt(parts[1], 10);
+      }
+    }
+    
+    return hosts;
+  } catch (error) {
+    console.error("Failed to parse ssh config", error);
+    return [];
+  }
+});
+
+ipcMain.handle("desktop:mount-ssh-workspace", async (event, host, remotePath, targetDirName, conversationId) => {
+  if (!mainWin || mainWin.isDestroyed() || event.sender !== mainWin.webContents) {
+    return null;
+  }
+  try {
+    const { execSync } = await import("node:child_process");
+    const os = await import("node:os");
+    
+    let mountPath;
+    if (conversationId && targetDirName) {
+      mountPath = join(os.homedir(), ".openhands/agent-canvas/workspaces", conversationId, targetDirName);
+    } else {
+      const tmpdir = os.tmpdir();
+      // Si estamos en el home, agregamos el targetDirName (o una versión segura de la ruta remota) al path temporal
+      // para que el usuario no piense que es todo el servidor
+      const safeDirName = targetDirName || remotePath.split('/').pop() || 'remote-folder';
+      mountPath = join(tmpdir, `pair-bot-ssh-${host.name}`, safeDirName);
+    }
+    
+    if (!existsSync(mountPath)) {
+      import("node:fs").then(fs => fs.mkdirSync(mountPath, { recursive: true }));
+    }
+    
+    const sanitizedHostName = host.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+    const syncName = `pair-bot-ssh-${sanitizedHostName}-${targetDirName || 'tmp'}`;
+    
+    try { execSync(`mutagen sync terminate ${syncName}`, { stdio: 'ignore' }); } catch (e) {}
+    
+    const target = `${host.name}:${remotePath}`;
+    const cmd = `mutagen sync create --name=${syncName} --ignore-vcs --symlink-mode=ignore --ignore="node_modules" --ignore=".git" "${mountPath}" "${target}"`;
+    execSync(cmd);
+    
+    return mountPath;
+  } catch (error) {
+    console.error("Failed to mount ssh workspace", error);
+    throw new Error(`Failed to mount SSH workspace for ${host.name}: ${error.message}`);
+  }
+});
+
+ipcMain.handle("desktop:connect-ssh", async (event, host) => {
+  if (sshClient) {
+    sshClient.end();
+    sshClient = null;
+    sftpSession = null;
+  }
+  
+  return new Promise(async (resolve, reject) => {
+    try {
+      const conn = new Client();
+      const os = await import("node:os");
+      
+      conn.on('ready', () => {
+        conn.sftp((err, sftp) => {
+          if (err) {
+            conn.end();
+            return reject(err);
+          }
+          sshClient = conn;
+          sftpSession = sftp;
+          resolve({ success: true });
+        });
+      }).on('error', (err) => {
+        reject(err);
+      }).connect({
+        host: host.hostName || host.name,
+        port: host.port || 22,
+        username: host.user || process.env.USER,
+        privateKey: host.identityFile ? readFileSync(host.identityFile.replace(/^~/, os.homedir())) : undefined,
+        agent: process.env.SSH_AUTH_SOCK
+      });
+    } catch (e) {
+      reject(e);
+    }
+  });
+});
+
+ipcMain.handle("desktop:disconnect-ssh", async () => {
+  if (sshClient) {
+    sshClient.end();
+    sshClient = null;
+    sftpSession = null;
+  }
+  return { success: true };
+});
+
+ipcMain.handle("desktop:list-remote-files", async (event, remotePath) => {
+  if (!sftpSession) {
+    throw new Error("Not connected to SSH");
+  }
+  return new Promise((resolve, reject) => {
+    sftpSession.readdir(remotePath, (err, list) => {
+      if (err) {
+        return reject(err);
+      }
+      const filteredList = list.filter(item => item.filename !== '.' && item.filename !== '..');
+      const entries = filteredList.map(item => {
+        const isDir = item.attrs.isDirectory();
+        return {
+          name: item.filename,
+          path: remotePath.endsWith('/') ? `${remotePath}${item.filename}` : `${remotePath}/${item.filename}`,
+          isDirectory: isDir,
+        };
+      });
+      entries.sort((a, b) => {
+        if (a.isDirectory && !b.isDirectory) return -1;
+        if (!a.isDirectory && b.isDirectory) return 1;
+        return a.name.localeCompare(b.name);
+      });
+      resolve(entries);
+    });
+  });
 });
 
 ipcMain.handle("desktop:is-directory", (event, targetPath) => {

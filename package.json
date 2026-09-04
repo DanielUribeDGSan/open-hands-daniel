@@ -62,6 +62,8 @@
     "sirv": "3.0.2",
     "sirv-cli": "3.0.1",
     "socket.io-client": "4.8.3",
+    "ssh-config": "^5.2.1",
+    "ssh2": "^1.17.0",
     "tailwind-merge": "3.6.0",
     "tailwind-scrollbar": "4.0.2",
     "unist-util-visit": "5.1.0",
