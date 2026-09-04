@@ -293,7 +293,7 @@ export function FileDiffViewer({
       )}
     >
       <div
-        className="flex h-10 flex-shrink-0 cursor-pointer items-center border-b border-[var(--oh-border)] px-3"
+        className="oh-panel-chrome flex h-10 flex-shrink-0 cursor-pointer items-center border-b border-[var(--oh-border)] px-3"
         onClick={handleToggle}
       >
         <span className="flex w-full min-w-0 items-center gap-2 text-sm text-content">

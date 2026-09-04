@@ -72,6 +72,20 @@ export const isMobileUserAgent = (): boolean =>
     navigator.userAgent,
   );
 
+/** True when the UI is running inside the Electron desktop shell. */
+export const isElectronApp = (): boolean =>
+  typeof navigator !== "undefined" &&
+  navigator.userAgent.toLowerCase().includes("electron");
+
+/**
+ * macOS Electron can show true vibrancy (desktop wallpaper through translucent
+ * chrome). Other platforms fall back to a glass-style translucent tint.
+ */
+export const supportsNativeVibrancy = (): boolean =>
+  isElectronApp() &&
+  typeof navigator !== "undefined" &&
+  /Mac|Macintosh|MacIntel/i.test(navigator.platform || navigator.userAgent);
+
 /**
  * Detect if the user is on a mobile device.
  * Touch support alone is not sufficient — touchscreen laptops have touch

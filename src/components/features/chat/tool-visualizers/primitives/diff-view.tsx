@@ -113,8 +113,8 @@ export const computeLineDiff = (
 // Background + gutter only — avoid forcing text color so Prism / VS Code
 // token colors (keywords, strings, tags…) stay visible on each line.
 const ROW_STYLE: Record<DiffRow["type"], string> = {
-  add: "bg-[#10291f] border-l-[#2ea043]",
-  del: "bg-[#2d1719] border-l-[#f85149]",
+  add: "bg-[#1F3124] border-l-[#2ea043]",
+  del: "bg-[#3C1E1B] border-l-[#f85149]",
   ctx: "border-l-transparent",
 };
 const ROW_PREFIX: Record<DiffRow["type"], string> = {
@@ -143,52 +143,60 @@ export function DiffView({
   return (
     <div className="flex flex-col gap-1">
       <div className="overflow-auto rounded-lg border border-[#303030] bg-[#181818] font-mono text-xs shadow-inner">
-        {shown.map((row, index) => {
-          // Single gutter like a normal editor: prefer the new-file line,
-          // fall back to old on deletions. Dual old/new columns looked like
-          // duplicated numbers on context rows (12|12, 13|13, …).
-          const lineNo = row.newLine ?? row.oldLine;
-          return (
-            <div
-              // Diff rows have no stable id and lines may repeat, so the index
-              // within this render is the only available key.
-              key={`${index}-${row.type}`}
-              className={cn(
-                "grid min-h-6 grid-cols-[3rem_1fr] border-l-2 leading-6",
-                ROW_STYLE[row.type],
-              )}
-            >
-              <span className="select-none border-r border-[#30363d] px-2 text-right text-[#6e7681]">
-                {lineNo ?? ""}
-              </span>
-              <code className="flex min-w-0 whitespace-pre-wrap px-3 text-[12px]">
-                <span className="mr-2 inline-block w-2 select-none text-[#8b949e] opacity-80">
-                  {ROW_PREFIX[row.type].trim()}
-                </span>
-                {language ? (
-                  <SyntaxHighlighter
-                    language={language}
-                    style={vscDarkPlus}
-                    PreTag="span"
-                    CodeTag="span"
-                    customStyle={{
-                      margin: 0,
-                      padding: 0,
-                      background: "transparent",
-                      whiteSpace: "pre-wrap",
-                      overflow: "visible",
-                    }}
-                    codeTagProps={{ style: { background: "transparent" } }}
-                  >
-                    {row.text || " "}
-                  </SyntaxHighlighter>
-                ) : (
-                  <span className="text-[#e6edf3]">{row.text || " "}</span>
+        {/*
+          inline-block + min-w-full: rows stretch to the pane when the window
+          is wide, and grow with the longest line when scrolling horizontally.
+          Without this, add/del backgrounds shrink to content width.
+        */}
+        <div className="inline-block min-w-full align-top">
+          {shown.map((row, index) => {
+            // Single gutter like a normal editor: prefer the new-file line,
+            // fall back to old on deletions. Dual old/new columns looked like
+            // duplicated numbers on context rows (12|12, 13|13, …).
+            const lineNo = row.newLine ?? row.oldLine;
+            return (
+              <div
+                // Diff rows have no stable id and lines may repeat, so the index
+                // within this render is the only available key.
+                key={`${index}-${row.type}`}
+                className={cn(
+                  "grid w-full min-h-6 grid-cols-[3rem_minmax(0,1fr)] border-l-2 leading-6",
+                  ROW_STYLE[row.type],
                 )}
-              </code>
-            </div>
-          );
-        })}
+              >
+                <span className="select-none border-r border-[#30363d] px-2 text-right text-[#6e7681]">
+                  {lineNo ?? ""}
+                </span>
+                <code className="block min-w-0 whitespace-pre-wrap px-3 text-[12px]">
+                  <span className="mr-2 inline-block w-2 select-none text-[#8b949e] opacity-80">
+                    {ROW_PREFIX[row.type].trim()}
+                  </span>
+                  {language ? (
+                    <SyntaxHighlighter
+                      language={language}
+                      style={vscDarkPlus}
+                      PreTag="span"
+                      CodeTag="span"
+                      customStyle={{
+                        margin: 0,
+                        padding: 0,
+                        background: "transparent",
+                        whiteSpace: "pre-wrap",
+                        overflow: "visible",
+                        display: "inline",
+                      }}
+                      codeTagProps={{ style: { background: "transparent" } }}
+                    >
+                      {row.text || " "}
+                    </SyntaxHighlighter>
+                  ) : (
+                    <span className="text-[#e6edf3]">{row.text || " "}</span>
+                  )}
+                </code>
+              </div>
+            );
+          })}
+        </div>
       </div>
       {truncated && (
         <span className="text-xs text-muted">

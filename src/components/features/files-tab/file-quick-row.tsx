@@ -39,7 +39,7 @@ export function FileQuickRow({
 
   return (
     <div
-      className="flex h-[34px] shrink-0 items-stretch gap-1.5 overflow-y-hidden border-b border-[var(--oh-border)] px-2"
+      className="oh-panel-chrome flex h-[34px] shrink-0 items-stretch gap-1.5 overflow-y-hidden border-b border-[var(--oh-border)] px-2"
       data-testid="file-quick-row"
     >
       <button

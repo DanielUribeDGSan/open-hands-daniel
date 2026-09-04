@@ -244,7 +244,7 @@ function FilesTab() {
             >
               {selectedPath ? (
                 <>
-                  <div className="flex items-center gap-3 px-3 py-1.5 border-b border-[var(--oh-border)]">
+                  <div className="oh-panel-chrome flex items-center gap-3 px-3 py-1.5 border-b border-[var(--oh-border)]">
                     <SegmentedToggle<ViewMode>
                       ariaLabel={t(I18nKey.FILES$RICH)}
                       testId="files-tab-content-mode-toggle"

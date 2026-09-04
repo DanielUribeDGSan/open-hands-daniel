@@ -231,7 +231,7 @@ export function DiffChangeTree({
 
       <aside
         data-testid="diff-change-tree-sidebar"
-        className="flex min-h-0 shrink-0 flex-col overflow-y-auto border-l border-[var(--oh-border)] bg-[var(--oh-surface)] py-1.5 custom-scrollbar-always"
+        className="flex min-h-0 shrink-0 flex-col overflow-y-auto border-l border-[var(--oh-border)] bg-transparent py-1.5 custom-scrollbar-always"
         style={{
           width: `${100 - leftWidth}%`,
           minWidth: REVIEW_TREE_SIDEBAR_MIN_PX,

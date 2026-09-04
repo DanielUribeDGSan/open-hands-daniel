@@ -43,7 +43,7 @@ export function CommitRow({
         onClick={onToggle}
         aria-expanded={isExpanded}
         data-testid="commit-row-toggle"
-        className="w-full flex h-10 items-center gap-2 px-3 border-b border-[var(--oh-border)] text-sm text-content text-left hover:cursor-pointer"
+        className="oh-panel-chrome w-full flex h-10 items-center gap-2 px-3 border-b border-[var(--oh-border)] text-sm text-content text-left hover:cursor-pointer"
       >
         <code className="w-[7ch] flex-shrink-0 text-center font-mono text-xs text-[var(--oh-muted)]">
           {commit.shortSha}

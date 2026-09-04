@@ -47,7 +47,7 @@ export function UncommittedChangesRow({
         onClick={onToggle}
         aria-expanded={isExpanded}
         data-testid="uncommitted-changes-row-toggle"
-        className="flex h-10 w-full flex-shrink-0 cursor-pointer items-center gap-2 border-b border-[var(--oh-border)] px-3 text-left text-sm text-content"
+        className="oh-panel-chrome flex h-10 w-full flex-shrink-0 cursor-pointer items-center gap-2 border-b border-[var(--oh-border)] px-3 text-left text-sm text-content"
       >
         <code className="w-[7ch] flex-shrink-0 text-center font-mono text-xs text-[var(--oh-muted)]">
           {EMPTY_COMMIT_SHA_PLACEHOLDER}

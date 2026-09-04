@@ -361,6 +361,7 @@ function createMainWindow() {
     }
   } catch (e) {}
 
+  const isMac = process.platform === "darwin";
   mainWin = new BrowserWindow({
     width: windowState.width || 1000,
     height: windowState.height || 750,
@@ -369,10 +370,17 @@ function createMainWindow() {
     minWidth: 800,
     minHeight: 600,
     show: false,
-    // App-shell background (--oh-background in src/index.css) — avoids white
-    // flashes during the show → maximize repaint after the splash closes.
-    backgroundColor: "#181818",
-    titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
+    // Transparent on macOS so sidebar/right-panel vibrancy can show the
+    // desktop wallpaper through (Codex-style). Opaque elsewhere to avoid
+    // white flashes during the splash → main transition.
+    backgroundColor: isMac ? "#00000000" : "#181818",
+    titleBarStyle: isMac ? "hiddenInset" : "default",
+    ...(isMac
+      ? {
+          vibrancy: "sidebar",
+          visualEffectState: "active",
+        }
+      : {}),
     icon: appIconPath,
     webPreferences: {
       nodeIntegration: false,

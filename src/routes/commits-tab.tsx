@@ -142,7 +142,7 @@ function GitCommits() {
       {turnPreview ? (
         <div
           data-testid="commits-turn-preview-toolbar"
-          className="flex shrink-0 items-center gap-2 border-b border-[var(--oh-border)] px-3 py-2"
+          className="oh-panel-chrome flex shrink-0 items-center gap-2 border-b border-[var(--oh-border)] px-3 py-2"
         >
           <span className="min-w-0 flex-1 truncate text-xs text-[var(--oh-text-secondary)]">
             {turnFileCount === 1

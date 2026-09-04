@@ -7,7 +7,7 @@ import { displayErrorToast } from "#/utils/custom-toast-handlers";
 import { I18nKey } from "#/i18n/declaration";
 import { useNavigation } from "#/context/navigation-context";
 import { useActiveBackendContext } from "#/contexts/active-backend-context";
-import { cn } from "#/utils/utils";
+import { cn, isElectronApp } from "#/utils/utils";
 import { useSidebarMobileNav } from "./sidebar-mobile-nav-context";
 import { useSidebarStore } from "#/stores/sidebar-store";
 import { useClickOutsideElement } from "#/hooks/use-click-outside-element";
@@ -200,7 +200,7 @@ export function Sidebar() {
     onOpenManageBackends: () => setManageBackendsModalOpen(true),
   };
 
-  const isElectron = typeof window !== "undefined" && navigator.userAgent.toLowerCase().includes("electron");
+  const isElectron = isElectronApp();
 
   return (
     <>
@@ -218,7 +218,7 @@ export function Sidebar() {
           setCollapsedRailHovered(false);
         }}
         className={cn(
-          "max-md:hidden flex bg-[#282828] flex-col min-h-0 transition-[width,min-width] duration-200",
+          "max-md:hidden flex oh-vibrancy-panel flex-col min-h-0 transition-[width,min-width] duration-200",
           "md:border-r md:border-[var(--oh-border)] md:h-full",
           collapsed
             ? "md:w-[60px] md:min-w-[60px] md:px-2.5"

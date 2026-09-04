@@ -16,6 +16,11 @@
     var(--cool-grey-300) 20%,
     transparent
   );
+  /* Codex-like chrome */
+  --oh-panel-chrome: #2e2e2e;
+  --oh-vibrancy-tint: rgba(40, 40, 40, 0.52);
+  --oh-diff-add-bg: #1f3124;
+  --oh-diff-del-bg: #3c1e1b;
   --bg-dark: var(--oh-bg-dark);
   --bg-light: var(--oh-bg-light);
   --bg-input: var(--oh-bg-input);
@@ -153,4 +158,31 @@ code {
 
 .environment-switch-overlay > div {
   animation: environment-switch-overlay-fade 980ms ease-in-out forwards;
+}
+
+/* macOS Electron vibrancy: clear the opaque shell so sidebars can show the
+   desktop wallpaper through. Content panes paint their own solid backgrounds. */
+html[data-vibrancy="true"],
+html[data-vibrancy="true"] body {
+  background-color: transparent !important;
+}
+
+.oh-vibrancy-panel {
+  background-color: var(--oh-vibrancy-tint);
+}
+
+html[data-vibrancy="true"] .oh-vibrancy-panel {
+  /* Native vibrancy already blurs the wallpaper; keep a light tint only. */
+  background-color: rgba(28, 28, 28, 0.28);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+html:not([data-vibrancy="true"]) .oh-vibrancy-panel {
+  backdrop-filter: saturate(160%) blur(28px);
+  -webkit-backdrop-filter: saturate(160%) blur(28px);
+}
+
+.oh-panel-chrome {
+  background-color: var(--oh-panel-chrome);
 }

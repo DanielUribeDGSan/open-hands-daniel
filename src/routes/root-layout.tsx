@@ -25,6 +25,10 @@ import { ReactRouterNavigationProvider } from "./react-router-navigation-provide
 import { OnboardingHost } from "#/components/features/onboarding";
 import { isOnboardingPreviewActive } from "#/components/features/onboarding/onboarding-preview";
 import { CanvasExtensionsRuntimeProvider } from "#/components/features/canvas-extensions/canvas-extensions-runtime";
+import {
+  cn,
+  supportsNativeVibrancy,
+} from "#/utils/utils";
 
 const EnvironmentSwitchOverlay = React.lazy(
   () => import("#/components/features/backends/environment-switch-overlay"),
@@ -107,8 +111,17 @@ export default function MainApp() {
   const hideMobileSidebarMenuBar = /^\/conversations\/[^/]+/.test(
     location.pathname,
   );
+  const isConversationRoute = hideMobileSidebarMenuBar;
   const showOnboardingPreview = isOnboardingPreviewActive(location.search);
-  const isElectron = typeof window !== "undefined" && navigator.userAgent.toLowerCase().includes("electron");
+  const useVibrancy = supportsNativeVibrancy();
+
+  React.useEffect(() => {
+    if (!useVibrancy) return undefined;
+    document.documentElement.dataset.vibrancy = "true";
+    return () => {
+      delete document.documentElement.dataset.vibrancy;
+    };
+  }, [useVibrancy]);
 
   return (
     <ReactRouterNavigationProvider>
@@ -116,12 +129,22 @@ export default function MainApp() {
         <SidebarMobileNavProvider>
           <div
             data-testid="root-layout"
-            className="h-screen lg:min-w-5xl flex flex-col md:flex-row bg-base overflow-hidden p-0"
+            className={cn(
+              "h-screen lg:min-w-5xl flex flex-col md:flex-row overflow-hidden p-0",
+              useVibrancy ? "bg-transparent" : "bg-base",
+            )}
           >
             <title>{appTitle}</title>
             <Sidebar />
 
-            <div className="flex min-h-0 flex-col w-full min-w-0 h-full gap-3">
+            <div
+              className={cn(
+                "flex min-h-0 flex-col w-full min-w-0 h-full gap-3",
+                // Keep non-conversation pages opaque; conversation needs a
+                // transparent shell so the right drawer can show vibrancy.
+                useVibrancy && !isConversationRoute && "bg-[#181818]",
+              )}
+            >
               {!hideMobileSidebarMenuBar ? <SidebarMobileMenuBar /> : null}
               {config.data &&
                 (config.data.maintenance_start_time ||

@@ -1,4 +1,4 @@
-import { cn } from "#/utils/utils";
+import { cn, isElectronApp } from "#/utils/utils";
 import { ChatInterfaceWrapper } from "./chat-interface-wrapper";
 import { ConversationTabContent } from "../conversation-tabs/conversation-tab-content/conversation-tab-content";
 import { ConversationNameWithStatus } from "../conversation-name-with-status";
@@ -26,9 +26,7 @@ export function ConversationMain() {
   const { isRightPanelShown } = useConversationStore();
   const overviewDrawer = useConversationOverviewDrawerOptional();
   const isSecondaryDrawerOpen = Boolean(overviewDrawer?.section);
-  const isElectron =
-    typeof window !== "undefined" &&
-    navigator.userAgent.toLowerCase().includes("electron");
+  const isElectron = isElectronApp();
 
   const { leftWidth, rightWidth, isDragging, containerRef, handleMouseDown } =
     useResizablePanels({
@@ -124,13 +122,13 @@ export function ConversationMain() {
             }}
           >
             <div className="flex h-full w-full flex-col">
-              <div className="flex flex-col flex-1 min-h-0 bg-[#181818] [--oh-color-base:#181818] [--oh-background:#181818] [--oh-surface:#181818] [--oh-bg-workspace:#181818] border-l border-[var(--oh-border)] overflow-hidden">
+              <div className="oh-vibrancy-panel flex h-full w-full flex-col border-l border-[var(--oh-border)] overflow-hidden">
                 {isElectron && (
                   <div className="h-8 w-full shrink-0 [-webkit-app-region:drag]" />
                 )}
                 <div
                   data-testid="tabs-pane-header"
-                  className="flex shrink-0 flex-col border-b border-[var(--oh-border)]"
+                  className="oh-panel-chrome flex shrink-0 flex-col border-b border-[var(--oh-border)]"
                 >
                   <ConversationTabs isPanelResizing={isDragging} />
                 </div>
