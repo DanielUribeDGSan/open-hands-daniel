@@ -62,6 +62,7 @@ import type {
 import EventService from "#/api/event-service/event-service.api";
 import { getAgentServerClientOptions } from "#/api/agent-server-client-options";
 import { useConversationStore } from "#/stores/conversation-store";
+import { revealConversationTab } from "#/utils/reveal-conversation-tab";
 import { useFilesTabStore } from "#/stores/files-tab-store";
 import ConversationService from "#/api/conversation-service/conversation-service.api";
 import { toFilesTabPath } from "#/utils/path-utils";
@@ -687,10 +688,7 @@ export function ConversationWebSocketProvider({
                   },
                   conversationId,
                 );
-                const panel = useConversationStore.getState();
-                panel.setSelectedTab("files");
-                panel.setHasRightPanelToggled(true);
-                panel.setIsRightPanelShown(true);
+                revealConversationTab("files");
               }
             }
           }
@@ -759,10 +757,7 @@ export function ConversationWebSocketProvider({
           // Handle ExecuteBashAction events - add command as input to terminal
           if (isExecuteBashActionEvent(event)) {
             appendInput(event.action.command);
-            const panel = useConversationStore.getState();
-            panel.setSelectedTab("terminal");
-            panel.setHasRightPanelToggled(true);
-            panel.setIsRightPanelShown(true);
+            revealConversationTab("terminal");
           }
 
           // Handle ExecuteBashObservation events - add output to terminal
@@ -783,20 +778,14 @@ export function ConversationWebSocketProvider({
                 ? screenshotData
                 : `data:image/png;base64,${screenshotData}`;
               useBrowserStore.getState().setScreenshotSrc(screenshotSrc);
-              const panel = useConversationStore.getState();
-              panel.setSelectedTab("browser");
-              panel.setHasRightPanelToggled(true);
-              panel.setIsRightPanelShown(true);
+              revealConversationTab("browser");
             }
           }
 
           // Handle BrowserNavigateAction events - update browser store with URL
           if (isBrowserNavigateActionEvent(event)) {
             useBrowserStore.getState().setUrl(event.action.url);
-            const panel = useConversationStore.getState();
-            panel.setSelectedTab("browser");
-            panel.setHasRightPanelToggled(true);
-            panel.setIsRightPanelShown(true);
+            revealConversationTab("browser");
           }
 
           if (
@@ -999,10 +988,7 @@ export function ConversationWebSocketProvider({
           // Handle ExecuteBashAction events - add command as input to terminal
           if (isExecuteBashActionEvent(event)) {
             appendInput(event.action.command);
-            const panel = useConversationStore.getState();
-            panel.setSelectedTab("terminal");
-            panel.setHasRightPanelToggled(true);
-            panel.setIsRightPanelShown(true);
+            revealConversationTab("terminal");
           }
 
           // Handle ExecuteBashObservation events - add output to terminal

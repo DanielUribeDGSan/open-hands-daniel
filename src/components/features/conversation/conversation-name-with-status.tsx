@@ -15,6 +15,7 @@ import { ConversationName } from "./conversation-name";
 import { ConversationWorkspaceBadge } from "./conversation-workspace-badge";
 import { ConversationGitActionsToggle } from "./conversation-git-actions-toggle";
 import { ConversationOverviewToggle } from "./conversation-overview-toggle";
+import { SuppressFilesPanelAutoOpenToggle } from "./suppress-files-panel-auto-open-toggle";
 import { RightPanelToggle } from "./right-panel-toggle";
 import {
   isExecutionActive,
@@ -151,6 +152,7 @@ export function ConversationNameWithStatus() {
       <div className="mr-2 flex shrink-0 items-center gap-1">
         <ConversationGitActionsToggle />
         <ConversationOverviewToggle />
+        <SuppressFilesPanelAutoOpenToggle />
         <RightPanelToggle />
       </div>
     </div>

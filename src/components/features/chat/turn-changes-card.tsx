@@ -291,11 +291,12 @@ export function openTurnReview(
     ? toReviewRelativePath(targetRaw, workingDir) || targetRaw
     : (turnFiles[0]?.path ?? null);
 
-  store.setSelectedTab("commits");
   store.setCommitsReviewTurnFiles(turnFiles);
   store.setCommitsReviewFilterPaths(turnFiles.map((file) => file.path));
   store.setCommitsAutoExpandSection("uncommitted");
   store.setCommitsAutoExpandPath(targetPath);
+  // Review is not Files — always reveal even when Files auto-open is locked.
+  store.setSelectedTab("commits");
   store.setHasRightPanelToggled(true);
   store.setIsRightPanelShown(true);
 }

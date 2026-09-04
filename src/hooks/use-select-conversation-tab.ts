@@ -4,6 +4,7 @@ import {
   type ConversationTab,
 } from "#/stores/conversation-store";
 import { useOptionalConversationId } from "#/hooks/use-conversation-id";
+import { revealConversationTab } from "#/utils/reveal-conversation-tab";
 
 /**
  * Custom hook for selecting conversation tabs with consistent behavior.
@@ -43,6 +44,7 @@ export function useSelectConversationTab() {
    * Selects a tab with proper panel visibility handling.
    * - If clicking the same active tab while panel is open, closes the panel
    * - If clicking a different tab or panel is closed, opens panel and selects tab
+   * User clicks always open the panel (ignores Files auto-open lock).
    */
   const selectTab = (tab: ConversationTab) => {
     if (selectedTab === tab && isRightPanelShown) {
@@ -58,13 +60,11 @@ export function useSelectConversationTab() {
 
   /**
    * Navigates to a tab without toggle behavior.
-   * Always shows the panel and selects the tab, even if already selected.
-   * Use this for "View" or "Read More" buttons that should always navigate.
+   * Files respects the auto-open lock; other tabs always reveal the panel.
    */
   const navigateToTab = (tab: ConversationTab) => {
     onTabChange(tab);
-    setPanelOpen(true);
-    setIsOverviewPanelShown(false);
+    revealConversationTab(tab);
   };
 
   const navigateToChanges = () => {

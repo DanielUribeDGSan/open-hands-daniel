@@ -58,11 +58,15 @@ export function ConversationTabsContextMenu({
       if (!rect) return;
 
       const gap = 8;
+      const edgePad = 8;
+      // Anchor to the trigger's right edge so the menu opens leftward —
+      // the ellipsis sits at the trailing edge of a narrow panel.
       setPortalStyle({
         position: "fixed",
         zIndex: 9999,
         top: rect.bottom + gap,
-        left: rect.left,
+        right: Math.max(edgePad, window.innerWidth - rect.right),
+        left: "auto",
       });
     };
 
@@ -168,9 +172,12 @@ export function ConversationTabsContextMenu({
       ref={ref}
       theme={isPortaled ? "popover" : "default"}
       position={isPortaled ? "none" : "bottom"}
-      alignment={isPortaled ? "none" : "left"}
+      alignment={isPortaled ? "none" : "right"}
       spacing={isPortaled ? "none" : "default"}
-      className={cn("z-[9999] w-fit", isPortaled ? "mt-0" : "mt-2")}
+      className={cn(
+        "z-[9999] w-max min-w-[11.5rem]",
+        isPortaled ? "mt-0" : "mt-2",
+      )}
     >
       {visibleTabConfig.map(({ tab, icon: Icon, i18nKey }) => {
         const pinned = !state.unpinnedTabs.includes(tab);
@@ -179,7 +186,7 @@ export function ConversationTabsContextMenu({
             <ArchivedDisabledTooltip isDisabled={isArchivedConversation}>
               <div
                 className={cn(
-                  "group flex h-[30px] w-full min-w-0 items-stretch rounded",
+                  "group flex h-[30px] w-full items-stretch rounded",
                   !isArchivedConversation &&
                     "hover:bg-[var(--oh-interactive-hover)]",
                   isArchivedConversation && "opacity-50",
@@ -190,7 +197,7 @@ export function ConversationTabsContextMenu({
                   data-testid={`conversation-tabs-menu-open-${tab}`}
                   disabled={isArchivedConversation}
                   className={cn(
-                    "flex min-w-0 flex-1 items-center gap-2 rounded-l p-2 text-start text-white",
+                    "flex flex-1 items-center gap-2 rounded-l p-2 text-start text-white",
                     dropdownInstantColorClassName,
                     isArchivedConversation
                       ? "cursor-not-allowed"
@@ -204,7 +211,7 @@ export function ConversationTabsContextMenu({
                   >
                     <Icon className="h-4 w-4" />
                   </span>
-                  <span className="text-sm">{t(i18nKey)}</span>
+                  <span className="whitespace-nowrap text-sm">{t(i18nKey)}</span>
                 </button>
                 <button
                   type="button"

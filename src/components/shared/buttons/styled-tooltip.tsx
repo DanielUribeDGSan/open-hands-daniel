@@ -2,6 +2,10 @@ import { Tooltip, TooltipProps } from "@heroui/react";
 import React, { ReactNode } from "react";
 import { cn } from "#/utils/utils";
 
+/** Default look: dark menu-style chip (gray bg, white text). */
+const TOOLTIP_SURFACE =
+  "!bg-[var(--oh-surface-raised)] !text-white border border-[var(--oh-border)]";
+
 export interface StyledTooltipProps {
   children: ReactNode;
   content: string | ReactNode;
@@ -39,13 +43,13 @@ export function StyledTooltip({
       placement={placement}
       offset={offset}
       shouldFlip={shouldFlip}
-      className={cn("bg-white text-black", tooltipClassName)}
+      className={cn(TOOLTIP_SURFACE, tooltipClassName)}
       showArrow={showArrow}
       disableAnimation={disableAnimation}
       classNames={{
         content: cn(
           "z-[9999] rounded-md px-2 py-1 text-xs font-medium shadow-md",
-          "!bg-white !text-black",
+          TOOLTIP_SURFACE,
           tooltipClassName,
         ),
       }}

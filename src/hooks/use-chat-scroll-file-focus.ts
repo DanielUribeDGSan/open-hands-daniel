@@ -1,9 +1,9 @@
 import React from "react";
 import type { AgentFileFocus } from "#/stores/files-tab-store";
 import { useFilesTabStore } from "#/stores/files-tab-store";
-import { useConversationStore } from "#/stores/conversation-store";
 import { useChatScrollSyncStore } from "#/stores/chat-scroll-sync-store";
 import { useOptionalConversationId } from "#/hooks/use-conversation-id";
+import { revealConversationTab } from "#/utils/reveal-conversation-tab";
 
 export type ChatScrollFocusTarget =
   | { kind: "file"; focus: AgentFileFocus; key: string }
@@ -16,7 +16,12 @@ type TargetEntry = {
 };
 
 type PendingApply =
-  | { kind: "file"; focus: AgentFileFocus; key: string }
+  | {
+      kind: "file";
+      focus: AgentFileFocus;
+      key: string;
+      scopeFocuses: AgentFileFocus[];
+    }
   | { kind: "turn-review"; open: () => void; key: string };
 
 const entries = new Map<Element, ChatScrollFocusTarget>();
@@ -116,14 +121,12 @@ function resolveScrubFocus(
 function applyFileFocus(
   focus: AgentFileFocus,
   conversationId: string | null | undefined,
+  scopeFocuses: AgentFileFocus[],
 ) {
-  useFilesTabStore.getState().focusAgentFile(focus, conversationId ?? null);
-  const panel = useConversationStore.getState();
-  panel.setSelectedTab("files");
-  if (!panel.isRightPanelShown) {
-    panel.setHasRightPanelToggled(true);
-    panel.setIsRightPanelShown(true);
-  }
+  useFilesTabStore
+    .getState()
+    .focusAgentFile(focus, conversationId ?? null, scopeFocuses);
+  revealConversationTab("files");
 }
 
 function resolvePending(
@@ -138,11 +141,13 @@ function resolvePending(
     target.kind === "file"
       ? target.focus
       : resolveScrubFocus(entry.element, target.focuses, root);
+  const scopeFocuses =
+    target.kind === "file" ? [target.focus] : target.focuses;
   const key =
     target.kind === "file"
       ? target.key
       : `${target.key}::${focus.path}::${focus.command}::${focus.startLine ?? ""}::${focus.endLine ?? ""}`;
-  return { kind: "file", focus, key };
+  return { kind: "file", focus, key, scopeFocuses };
 }
 
 /**
@@ -176,7 +181,7 @@ export function useChatScrollFileFocus(
     if (pending.kind === "turn-review") {
       pending.open();
     } else {
-      applyFileFocus(pending.focus, conversationId);
+      applyFileFocus(pending.focus, conversationId, pending.scopeFocuses);
     }
 
     lastAppliedKeyRef.current = pending.key;

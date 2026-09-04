@@ -18,6 +18,9 @@ interface FloatingTreeIslandProps {
   children: React.ReactNode;
   className?: string;
   testId?: string;
+  /** When set, shows a control to leave the filtered change-set tree. */
+  onShowAllFiles?: () => void;
+  showAllLabel?: string;
 }
 
 /**
@@ -33,12 +36,16 @@ export function FloatingTreeIsland({
   children,
   className,
   testId = "floating-tree-island",
+  onShowAllFiles,
+  showAllLabel,
 }: FloatingTreeIslandProps) {
   const { t } = useTranslation("openhands");
   const reduceMotion = useReducedMotion();
   const rootRef = useClickOutsideElement<HTMLDivElement>(() => {
     if (open) onOpenChange(false);
   });
+  const resolvedShowAllLabel =
+    showAllLabel ?? t(I18nKey.FILES$SHOW_ALL_PROJECT);
 
   return (
     <div
@@ -99,6 +106,16 @@ export function FloatingTreeIsland({
                     {count}
                   </span>
                 ) : null}
+                {onShowAllFiles ? (
+                  <button
+                    type="button"
+                    onClick={onShowAllFiles}
+                    data-testid={`${testId}-show-all`}
+                    className="cursor-pointer rounded-full px-2 py-0.5 text-[11px] font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                  >
+                    {resolvedShowAllLabel}
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => onOpenChange(false)}
@@ -155,7 +172,7 @@ export function FloatingTreeIsland({
             <FolderTree className="size-3.5" aria-hidden strokeWidth={2.25} />
           </span>
           <span className="text-[13px] font-medium tracking-tight">
-            {t(I18nKey.COMMON$FILES)}
+            {title}
           </span>
           {count != null ? (
             <span className="rounded-full bg-white/12 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-white/85">

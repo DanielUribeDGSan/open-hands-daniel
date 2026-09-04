@@ -251,6 +251,54 @@ describe("FilesTab", () => {
     ).toBeInTheDocument();
   });
 
+  it("scopes the island tree to agent change-set paths", async () => {
+    const user = userEvent.setup();
+    renderTab();
+
+    useFilesTabStore.getState().focusAgentFile(
+      {
+        path: "src/main.ts",
+        command: "str_replace",
+        beforeContent: "a",
+        afterContent: "b",
+      },
+      null,
+      [
+        {
+          path: "src/main.ts",
+          command: "str_replace",
+          beforeContent: "a",
+          afterContent: "b",
+        },
+        {
+          path: "README.md",
+          command: "create",
+          afterContent: "# hi",
+        },
+      ],
+    );
+
+    await user.click(screen.getByTestId("files-tab-tree-island-trigger"));
+
+    expect(await screen.findByTestId("files-tab-tree")).toBeInTheDocument();
+    expect(screen.getByTestId("file-tree-file-src/main.ts")).toBeInTheDocument();
+    expect(screen.getByTestId("file-tree-file-README.md")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("file-tree-file-index.html"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("files-tab-tree-island-trigger")).toHaveTextContent(
+      "COMMON$CHANGES",
+    );
+    expect(screen.getByTestId("files-tab-tree-island-trigger")).toHaveTextContent(
+      "2",
+    );
+
+    await user.click(screen.getByTestId("files-tab-tree-island-show-all"));
+    expect(
+      await screen.findByTestId("file-tree-file-index.html"),
+    ).toBeInTheDocument();
+  });
+
   it("renders markdown content via MarkdownRenderer in rich mode", async () => {
     useWorkspaceFilesMock.mockReturnValue({
       data: ["README.md"],

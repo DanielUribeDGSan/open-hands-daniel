@@ -15,6 +15,14 @@ interface FilesTabState {
    */
   openPaths: string[];
   agentFocus: AgentFileFocus | null;
+  /**
+   * When the agent (or chat scroll) focuses edits that aren't the final
+   * turn-review card, the Files island shows only these paths — not the
+   * whole workspace tree.
+   */
+  agentFocusScopePaths: string[] | null;
+  /** Latest focus payload per scoped path (for switching files in the island). */
+  agentFocusByPath: Record<string, AgentFileFocus> | null;
   setSelectedPath: (
     path: string | null,
     conversationId?: string | null,
@@ -34,8 +42,11 @@ interface FilesTabState {
   focusAgentFile: (
     focus: AgentFileFocus,
     conversationId?: string | null,
+    scopeFocuses?: AgentFileFocus[] | null,
   ) => void;
   clearAgentFocus: () => void;
+  /** Restore the full workspace tree in the Files island. */
+  clearAgentFocusScope: () => void;
 }
 
 export interface AgentFileFocus {
@@ -97,6 +108,28 @@ function persistOpenState(
   });
 }
 
+function uniqueScopePaths(focuses: AgentFileFocus[]): string[] {
+  const seen = new Set<string>();
+  const paths: string[] = [];
+  for (const focus of focuses) {
+    if (!focus.path || seen.has(focus.path)) continue;
+    seen.add(focus.path);
+    paths.push(focus.path);
+  }
+  return paths;
+}
+
+function focusesByPath(
+  focuses: AgentFileFocus[],
+): Record<string, AgentFileFocus> {
+  const byPath: Record<string, AgentFileFocus> = {};
+  for (const focus of focuses) {
+    if (!focus.path) continue;
+    byPath[focus.path] = focus;
+  }
+  return byPath;
+}
+
 // Hoisted out of files-tab.tsx local state so non-React callers (e.g. the
 // canvas_ui tool dispatcher in the WebSocket context) can drive selection.
 export const useFilesTabStore = create<FilesTabState>((set) => ({
@@ -104,6 +137,8 @@ export const useFilesTabStore = create<FilesTabState>((set) => ({
   selectedConversationId: null,
   openPaths: [],
   agentFocus: null,
+  agentFocusScopePaths: null,
+  agentFocusByPath: null,
   setSelectedPath: (selectedPath, conversationId = null) =>
     set((state) => {
       if (selectedPath === null) {
@@ -117,6 +152,13 @@ export const useFilesTabStore = create<FilesTabState>((set) => ({
           // Callers that switch conversations should prefer
           // `hydrateForConversation` so persisted tabs can be restored.
           openPaths: switchedConversation ? [] : state.openPaths,
+          ...(switchedConversation
+            ? {
+                agentFocus: null,
+                agentFocusScopePaths: null,
+                agentFocusByPath: null,
+              }
+            : {}),
         };
         persistOpenState(conversationId, next.openPaths, next.selectedPath);
         return next;
@@ -135,7 +177,7 @@ export const useFilesTabStore = create<FilesTabState>((set) => ({
       persistOpenState(conversationId, next.openPaths, next.selectedPath);
       return next;
     }),
-  focusAgentFile: (focus, conversationId = null) =>
+  focusAgentFile: (focus, conversationId = null, scopeFocuses = null) =>
     set((state) => {
       const sameConversation = state.selectedConversationId === conversationId;
       const openPaths = withOpenedPath(
@@ -143,15 +185,21 @@ export const useFilesTabStore = create<FilesTabState>((set) => ({
         focus.path,
         sameConversation,
       );
+      const focuses =
+        scopeFocuses && scopeFocuses.length > 0 ? scopeFocuses : [focus];
       persistOpenState(conversationId, openPaths, focus.path);
       return {
         agentFocus: focus,
         selectedPath: focus.path,
         selectedConversationId: conversationId,
         openPaths,
+        agentFocusScopePaths: uniqueScopePaths(focuses),
+        agentFocusByPath: focusesByPath(focuses),
       };
     }),
   clearAgentFocus: () => set({ agentFocus: null }),
+  clearAgentFocusScope: () =>
+    set({ agentFocusScopePaths: null, agentFocusByPath: null }),
   closeOpenPath: (path) =>
     set((state) => {
       if (!state.openPaths.includes(path)) return state;
@@ -177,5 +225,7 @@ export const useFilesTabStore = create<FilesTabState>((set) => ({
       openPaths,
       selectedPath: resolveSelectedPath(openPaths, selectedPath),
       agentFocus: null,
+      agentFocusScopePaths: null,
+      agentFocusByPath: null,
     }),
 }));

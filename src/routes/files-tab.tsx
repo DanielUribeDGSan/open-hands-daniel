@@ -66,7 +66,11 @@ function FilesTab() {
   );
   const openPaths = useFilesTabStore((s) => s.openPaths);
   const agentFocus = useFilesTabStore((s) => s.agentFocus);
+  const agentFocusScopePaths = useFilesTabStore((s) => s.agentFocusScopePaths);
+  const agentFocusByPath = useFilesTabStore((s) => s.agentFocusByPath);
   const clearAgentFocus = useFilesTabStore((s) => s.clearAgentFocus);
+  const clearAgentFocusScope = useFilesTabStore((s) => s.clearAgentFocusScope);
+  const focusAgentFile = useFilesTabStore((s) => s.focusAgentFile);
   const setSelectedPath = useFilesTabStore((s) => s.setSelectedPath);
   const closeOpenPath = useFilesTabStore((s) => s.closeOpenPath);
   const hydrateForConversation = useFilesTabStore(
@@ -81,16 +85,55 @@ function FilesTab() {
   const conversationOpenPaths =
     selectedConversationId === conversationId ? openPaths : [];
 
+  const treePaths = useMemo(() => {
+    if (!agentFocusScopePaths?.length) return paths;
+    return agentFocusScopePaths;
+  }, [agentFocusScopePaths, paths]);
+
+  const isChangeScope = (agentFocusScopePaths?.length ?? 0) > 0;
+
   // Tag every selection with the active conversation so it can't leak into
   // the next one. Opening a path also appends it to the tab strip.
   const handleSelectFile = useCallback(
     (path: string) => {
-      clearAgentFocus();
-      setSelectedPath(path, conversationId);
+      const scopedFocus = agentFocusByPath?.[path];
+      if (scopedFocus && agentFocusByPath) {
+        focusAgentFile(
+          scopedFocus,
+          conversationId,
+          Object.values(agentFocusByPath),
+        );
+      } else {
+        clearAgentFocus();
+        clearAgentFocusScope();
+        setSelectedPath(path, conversationId);
+      }
       setTreeIslandOpen(false);
     },
-    [clearAgentFocus, conversationId, setSelectedPath],
+    [
+      agentFocusByPath,
+      clearAgentFocus,
+      clearAgentFocusScope,
+      conversationId,
+      focusAgentFile,
+      setSelectedPath,
+    ],
   );
+
+  // Expand ancestor folders so scoped change files are visible immediately.
+  useEffect(() => {
+    if (!agentFocusScopePaths?.length) return;
+    setExpandedDirs((prev) => {
+      const next = new Set(prev);
+      for (const path of agentFocusScopePaths) {
+        const parts = path.split("/").filter(Boolean);
+        for (let i = 1; i < parts.length; i += 1) {
+          next.add(parts.slice(0, i).join("/"));
+        }
+      }
+      return next;
+    });
+  }, [agentFocusScopePaths]);
 
   // Pre-fetch the selected file's content here too so the toolbar's
   // "open in new window" link can reach for its `staticUrl`. react-query
@@ -205,10 +248,9 @@ function FilesTab() {
                             aria-hidden="true"
                             className="size-1.5 animate-pulse rounded-full bg-[var(--oh-muted)]"
                           />
-                          {/* eslint-disable-next-line i18next/no-literal-string */}
                           {agentFocus.command === "view"
-                            ? "Leyendo archivo"
-                            : "Modificando archivo"}
+                            ? t(I18nKey.FILES$READING_FILE)
+                            : t(I18nKey.FILES$EDITING_FILE)}
                         </span>
                       )}
                     {selectedFileStaticUrl ? (
@@ -240,15 +282,23 @@ function FilesTab() {
 
             <FloatingTreeIsland
               label={t(I18nKey.FILES$SHOW_FILE_TREE)}
-              title={t(I18nKey.COMMON$FILES)}
-              count={paths.length || undefined}
+              title={
+                isChangeScope
+                  ? t(I18nKey.COMMON$CHANGES)
+                  : t(I18nKey.COMMON$FILES)
+              }
+              count={treePaths.length || undefined}
               open={treeIslandOpen}
               onOpenChange={setTreeIslandOpen}
               testId="files-tab-tree-island"
+              onShowAllFiles={
+                isChangeScope ? clearAgentFocusScope : undefined
+              }
+              showAllLabel={t(I18nKey.FILES$SHOW_ALL_PROJECT)}
             >
               <div data-testid="files-tab-tree">
                 <FileTreeView
-                  paths={paths}
+                  paths={treePaths}
                   selectedPath={selectedPath}
                   onSelectFile={handleSelectFile}
                   expandedDirs={expandedDirs}

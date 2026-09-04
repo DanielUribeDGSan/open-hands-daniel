@@ -1,11 +1,11 @@
 import ConversationService from "#/api/conversation-service/conversation-service.api";
 import {
   ConversationTab,
-  useConversationStore,
 } from "#/stores/conversation-store";
 import { useFilesTabStore } from "#/stores/files-tab-store";
 import type { CanvasUIAction } from "#/types/agent-server/core";
 import { toFilesTabPath } from "#/utils/path-utils";
+import { revealConversationTab } from "#/utils/reveal-conversation-tab";
 
 const VALID_TABS: ReadonlySet<ConversationTab> = new Set<ConversationTab>([
   "files",
@@ -15,16 +15,8 @@ const VALID_TABS: ReadonlySet<ConversationTab> = new Set<ConversationTab>([
   "tasklist",
 ]);
 
-// Mirrors src/hooks/use-select-conversation-tab.ts so a non-React caller (the
-// WebSocket dispatch) gets the same "reveal the right panel if collapsed"
-// behavior as in-app tab switches.
 function navigateToTab(tab: ConversationTab) {
-  const store = useConversationStore.getState();
-  store.setSelectedTab(tab);
-  if (!store.isRightPanelShown) {
-    store.setHasRightPanelToggled(true);
-    store.setIsRightPanelShown(true);
-  }
+  revealConversationTab(tab);
 }
 
 function isValidTab(value: string): value is ConversationTab {
