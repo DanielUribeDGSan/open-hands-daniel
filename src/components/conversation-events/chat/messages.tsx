@@ -8,17 +8,19 @@ import { ThoughtEventMessage } from "./event-message-components/thought-event-me
 import { useModelStore } from "#/stores/model-store";
 import { ModelMessages } from "#/components/features/chat/model-messages";
 import { useOptionalConversationId } from "#/hooks/use-conversation-id";
+import { TurnChangesCard, type TurnChangeSummary } from "#/components/features/chat/turn-changes-card";
 
 interface MessagesProps {
   messages: OpenHandsEvent[]; // UI events (actions replaced by observations)
   allEvents: OpenHandsEvent[]; // Full event history (for action lookup)
+  completedTurnChanges?: Map<string, TurnChangeSummary>; // Turn summaries keyed by the user event ID that followed them
 }
 
 const getLastEventId = (events: OpenHandsEvent[]) => events.at(-1)?.id;
 const getLastEvent = (events: OpenHandsEvent[]) => events.at(-1);
 
 export const Messages: React.FC<MessagesProps> = React.memo(
-  ({ messages, allEvents }) => {
+  ({ messages, allEvents, completedTurnChanges }) => {
     const { conversationId } = useOptionalConversationId();
     // Get the set of event IDs that should render PlanPreview
     // This ensures only one preview per user message "phase"
@@ -79,8 +81,14 @@ export const Messages: React.FC<MessagesProps> = React.memo(
       <>
         {renderedItems.map((item, itemIndex) => {
           if (item.kind === "single") {
+            const turnSummary = completedTurnChanges?.get(String(item.event.id));
             return (
               <React.Fragment key={`single-${item.event.id}`}>
+                {turnSummary && (
+                  <div className="relative z-0 shrink-0 px-0 md:px-0 mb-4">
+                    <TurnChangesCard summary={turnSummary} />
+                  </div>
+                )}
                 {/* Thoughts for singles are also hoisted as their own
                     "thought" item, so suppress the inline render to avoid
                     duplication. */}

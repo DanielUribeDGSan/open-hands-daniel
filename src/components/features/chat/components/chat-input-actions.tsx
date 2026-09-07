@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom";
 import { useTranslation } from "react-i18next";
-import { Cpu } from "lucide-react";
+import { Cpu, Square } from "lucide-react";
 import { AgentStatus } from "#/components/features/controls/agent-status";
 import { ChangeAgentButton } from "../change-agent-button";
 import { ChatInputModel, ChatInputModelMenuContent } from "./chat-input-model";
@@ -48,6 +48,9 @@ interface ChatInputActionsProps {
   showButton?: boolean;
   buttonClassName?: string;
   handleSubmit?: () => void;
+  isAgentRunning?: boolean;
+  onStop?: () => void;
+  shouldAbortContext?: boolean;
 }
 
 export function ChatInputActions({
@@ -58,6 +61,9 @@ export function ChatInputActions({
   showButton = true,
   buttonClassName = "",
   handleSubmit = () => {},
+  isAgentRunning = false,
+  onStop = () => {},
+  shouldAbortContext = false,
 }: ChatInputActionsProps) {
   const { t } = useTranslation("openhands");
   const unifiedPauseMutation = useUnifiedPauseConversation();
@@ -490,7 +496,7 @@ export function ChatInputActions({
         ref={rightSectionRef}
         className="ml-auto flex shrink-0 items-center gap-2"
       >
-        {showAgentStatusInline && conversationId && (
+        {!shouldAbortContext && showAgentStatusInline && conversationId && (
           <AgentStatus
             handleStop={handlePauseAgent}
             handleResumeAgent={handleResumeAgentClick}
@@ -504,6 +510,8 @@ export function ChatInputActions({
             buttonClassName={buttonClassName}
             handleSubmit={handleSubmit}
             disabled={disabled || !canSubmit}
+            isAgentRunning={isAgentRunning}
+            onStop={onStop}
           />
         )}
       </div>

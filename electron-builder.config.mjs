@@ -69,7 +69,7 @@ import { fileURLToPath } from "node:url";
 // the package here — a missing one crashes that service in the installed
 // app with ERR_MODULE_NOT_FOUND (invisible under Finder, where stdout goes
 // to /dev/null) and the splash times out waiting for port 8000.
-const RUNTIME_PACKAGES = ["sirv", "httpxy"];
+const RUNTIME_PACKAGES = ["sirv", "httpxy", "ssh2"];
 
 const repoRoot = dirname(fileURLToPath(import.meta.url));
 

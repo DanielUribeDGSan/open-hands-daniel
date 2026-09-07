@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Server, X, Copy, Terminal } from "lucide-react";
+import { Server, X, Copy, Terminal, Edit } from "lucide-react";
 import toast from "react-hot-toast";
 
 import { BaseModalTitle } from "#/components/shared/modals/confirmation-modals/base-modal";
@@ -81,6 +81,17 @@ export function SshHostBrowserModal({
     }
   };
 
+  const handleEditConfig = async () => {
+    try {
+      const success = await window.desktop?.openSshConfig?.();
+      if (!success) {
+        toast.error("Failed to open ~/.ssh/config");
+      }
+    } catch (err) {
+      toast.error("Error opening config file");
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -96,13 +107,20 @@ export function SshHostBrowserModal({
           <BaseModalTitle className={modalTitleSmClassName}>
             Connect to Remote SSH Server
           </BaseModalTitle>
-          <ModalCloseButton onClick={onClose} />
+          <ModalCloseButton onClose={onClose} />
         </div>
 
         <div className="flex flex-col gap-4 p-6 pt-0">
-          <p className="text-sm text-[var(--oh-text-secondary)]">
-            Select a host from your <code>~/.ssh/config</code> to mount as a workspace.
-          </p>
+          <div className="flex items-start justify-between gap-4">
+            <p className="text-sm text-[var(--oh-text-secondary)]">
+              Select a host from your <code>~/.ssh/config</code> to mount as a workspace.
+            </p>
+            <BrandButton variant="secondary" onClick={handleEditConfig} className="shrink-0 gap-2">
+              <Edit className="size-4" />
+              <span>Edit Config</span>
+            </BrandButton>
+          </div>
+
 
           {sshfsError ? (
             <div className="flex flex-col gap-3 rounded-lg border border-red-500/50 bg-red-500/10 p-4">
@@ -169,7 +187,12 @@ export function SshHostBrowserModal({
               {loading ? (
                 <div className="p-4 text-center text-sm text-[var(--oh-muted)]">Loading hosts...</div>
               ) : hosts.length === 0 ? (
-                <div className="p-4 text-center text-sm text-[var(--oh-muted)]">No SSH hosts found in ~/.ssh/config</div>
+                <div className="flex flex-col items-center gap-3 p-8 text-center text-sm text-[var(--oh-muted)]">
+                  <p>No SSH hosts found in ~/.ssh/config</p>
+                  <BrandButton variant="primary" onClick={handleEditConfig}>
+                    Create Config File
+                  </BrandButton>
+                </div>
               ) : (
                 <ul className="divide-y divide-[var(--oh-border)]">
                 {hosts.map((host, idx) => (

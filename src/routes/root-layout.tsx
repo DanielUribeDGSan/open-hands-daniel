@@ -25,6 +25,7 @@ import { OnboardingHost } from "#/components/features/onboarding";
 import { isOnboardingPreviewActive } from "#/components/features/onboarding/onboarding-preview";
 import { CanvasExtensionsRuntimeProvider } from "#/components/features/canvas-extensions/canvas-extensions-runtime";
 import { AppShellSkeleton } from "#/components/shared/app-shell-skeleton";
+import { RemoteFileEditor } from "#/components/features/editor/remote-file-editor";
 
 const EnvironmentSwitchOverlay = React.lazy(
   () => import("#/components/features/backends/environment-switch-overlay"),
@@ -137,6 +138,7 @@ export default function MainApp() {
                 className="relative flex-1 overflow-auto px-0 custom-scrollbar"
               >
                 <Outlet />
+                <RemoteFileEditor />
               </div>
             </div>
           </div>

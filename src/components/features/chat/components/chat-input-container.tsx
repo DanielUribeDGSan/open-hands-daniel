@@ -11,13 +11,17 @@ import { SlashCommandItem } from "#/hooks/chat/use-slash-command";
 interface ChatInputContainerProps {
   chatContainerRef: React.RefObject<HTMLDivElement | null>;
   isDragOver: boolean;
+  isProcessingFiles?: boolean;
   disabled: boolean;
   canSubmit: boolean;
   hasStartedConversation?: boolean;
   isNewConversationPending?: boolean;
   showButton: boolean;
   buttonClassName: string;
-  chatInputRef: React.RefObject<HTMLDivElement | null>;
+  chatInputRef: React.RefObject<HTMLTextAreaElement | null>;
+  isAgentRunning?: boolean;
+  onStop?: () => void;
+  shouldAbortContext?: boolean;
   handleFileIconClick: (isDisabled: boolean) => void;
   handleSubmit: () => void;
   onDragOver: (e: React.DragEvent, isDisabled: boolean) => void;
@@ -37,6 +41,7 @@ interface ChatInputContainerProps {
 export function ChatInputContainer({
   chatContainerRef,
   isDragOver,
+  isProcessingFiles = false,
   disabled,
   canSubmit,
   hasStartedConversation,
@@ -44,6 +49,9 @@ export function ChatInputContainer({
   showButton,
   buttonClassName,
   chatInputRef,
+  isAgentRunning = false,
+  onStop = () => {},
+  shouldAbortContext = false,
   handleFileIconClick,
   handleSubmit,
   onDragOver,
@@ -75,7 +83,17 @@ export function ChatInputContainer({
       onDrop={(e) => onDrop(e, disabled)}
     >
       {/* Drag Over UI */}
-      {isDragOver && <DragOver />}
+      {isDragOver && !isProcessingFiles && <DragOver />}
+      
+      {/* Processing Loader UI */}
+      {isProcessingFiles && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-[var(--oh-background)]/80 rounded-[15px] backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-2">
+            <span className="w-6 h-6 border-2 border-[var(--oh-accent)] border-t-transparent rounded-full animate-spin"></span>
+            <span className="text-sm font-medium text-[var(--oh-accent)]">Procesando archivos...</span>
+          </div>
+        </div>
+      )}
 
       <UploadedFiles />
 
@@ -109,6 +127,9 @@ export function ChatInputContainer({
         showButton={showButton}
         buttonClassName={buttonClassName}
         handleSubmit={handleSubmit}
+        isAgentRunning={isAgentRunning}
+        onStop={onStop}
+        shouldAbortContext={shouldAbortContext}
       />
     </div>
   );

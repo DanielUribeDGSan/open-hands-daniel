@@ -17,9 +17,13 @@ const TreeItem: React.FC<TreeItemProps> = ({ node }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [children, setChildren] = useState<RemoteFileNode[]>([]);
   const [loading, setLoading] = useState(false);
+  const { setEditingFilePath } = useRemoteSshStore();
 
   const toggleOpen = async () => {
-    if (!node.isDirectory) return;
+    if (!node.isDirectory) {
+      setEditingFilePath(node.path);
+      return;
+    }
     if (!isOpen && children.length === 0) {
       setLoading(true);
       try {

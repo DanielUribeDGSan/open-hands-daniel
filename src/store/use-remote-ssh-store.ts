@@ -14,6 +14,8 @@ interface RemoteSshState {
   setConnectedHost: (host: SshHost | null) => void;
   isConnecting: boolean;
   setIsConnecting: (connecting: boolean) => void;
+  editingFilePath: string | null;
+  setEditingFilePath: (path: string | null) => void;
 }
 
 export const useRemoteSshStore = create<RemoteSshState>((set) => ({
@@ -21,4 +23,6 @@ export const useRemoteSshStore = create<RemoteSshState>((set) => ({
   setConnectedHost: (host) => set({ connectedHost: host }),
   isConnecting: false,
   setIsConnecting: (connecting) => set({ isConnecting: connecting }),
+  editingFilePath: null,
+  setEditingFilePath: (path) => set({ editingFilePath: path }),
 }));

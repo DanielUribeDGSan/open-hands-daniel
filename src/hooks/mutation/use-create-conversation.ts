@@ -1,3 +1,5 @@
+import { useRemoteSshStore } from "#/store/use-remote-ssh-store";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import AgentServerConversationService from "#/api/conversation-service/agent-server-conversation-service.api";
 import { PluginSpec } from "#/api/conversation-service/agent-server-conversation-service.types";
@@ -217,18 +219,27 @@ export const useCreateConversation = () => {
       // Only extend the call with the profile fields when launching from a
       // profile, so a plain create stays byte-identical to the legacy
       // agent_settings path (#3727). sandboxId is unused here.
+      const { connectedHost } = useRemoteSshStore.getState();
+      const metadata = repository
+        ? {
+            selected_repository: repository.name,
+            selected_branch: repository.branch ?? null,
+            git_provider: repository.gitProvider,
+          }
+        : connectedHost
+          ? {
+              selected_repository: `ssh://${connectedHost.name}`,
+              selected_branch: null,
+              git_provider: "ssh",
+            }
+          : null;
+
       const conversation =
         await AgentServerConversationService.createConversation({
           initialUserMsg: query,
           conversationInstructions,
           plugins,
-          metadata: repository
-            ? {
-                selected_repository: repository.name,
-                selected_branch: repository.branch ?? null,
-                git_provider: repository.gitProvider,
-              }
-            : null,
+          metadata,
           workingDirOverride: workingDir,
           workspaceMode,
           parentConversationId,

@@ -25,12 +25,15 @@ contextBridge.exposeInMainWorld("desktop", {
   isDirectory: (path) => ipcRenderer.invoke("desktop:is-directory", path),
 
   getSshHosts: () => ipcRenderer.invoke("desktop:get-ssh-hosts"),
+  openSshConfig: () => ipcRenderer.invoke("desktop:open-ssh-config"),
   
   mountSshWorkspace: (host, remotePath) => ipcRenderer.invoke("desktop:mount-ssh-workspace", host, remotePath),
   
   connectSsh: (host) => ipcRenderer.invoke("desktop:connect-ssh", host),
   disconnectSsh: () => ipcRenderer.invoke("desktop:disconnect-ssh"),
   listRemoteFiles: (remotePath) => ipcRenderer.invoke("desktop:list-remote-files", remotePath),
+  readRemoteFile: (remotePath) => ipcRenderer.invoke("desktop:read-remote-file", remotePath),
+  saveRemoteFile: (remotePath, content) => ipcRenderer.invoke("desktop:save-remote-file", remotePath, content),
 
   /** Open a native folder picker. Returns selected absolute paths (or []). */
   showOpenDirectory: (options) =>

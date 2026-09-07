@@ -21,12 +21,18 @@ interface InteractiveChatBoxProps {
   onSubmit: (message: string, images: File[], files: File[]) => void;
   disabled?: boolean;
   hasStartedConversation?: boolean;
+  isAgentRunning?: boolean;
+  onStop?: () => void;
+  shouldAbortContext?: boolean;
 }
 
 export function InteractiveChatBox({
   onSubmit,
   disabled = false,
   hasStartedConversation,
+  isAgentRunning = false,
+  onStop = () => {},
+  shouldAbortContext = false,
 }: InteractiveChatBoxProps) {
   const {
     images,
@@ -82,6 +88,9 @@ export function InteractiveChatBox({
         disabled={isDisabled}
         isNewConversationPending={disabled}
         hasStartedConversation={hasStartedConversation}
+        isAgentRunning={isAgentRunning}
+        onStop={onStop}
+        shouldAbortContext={shouldAbortContext}
         onSubmit={handleSubmit}
         onFilesPaste={handleUpload}
       />

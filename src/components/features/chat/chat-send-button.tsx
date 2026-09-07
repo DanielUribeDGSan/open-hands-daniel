@@ -1,16 +1,20 @@
-import { ArrowUp } from "lucide-react";
+import { ArrowUp, Square } from "lucide-react";
 import { cn } from "#/utils/utils";
 
 export interface ChatSendButtonProps {
   buttonClassName: string;
   handleSubmit: () => void;
   disabled: boolean;
+  isAgentRunning?: boolean;
+  onStop?: () => void;
 }
 
 export function ChatSendButton({
   buttonClassName,
   handleSubmit,
   disabled,
+  isAgentRunning = false,
+  onStop,
 }: ChatSendButtonProps) {
   return (
     <button
@@ -24,13 +28,19 @@ export function ChatSendButton({
       )}
       data-name="arrow-up-circle-fill"
       data-testid="submit-button"
-      onClick={handleSubmit}
-      disabled={disabled}
+      onClick={isAgentRunning ? onStop : handleSubmit}
+      disabled={disabled && !isAgentRunning}
     >
-      <ArrowUp
-        className="w-4 h-4"
-        color={disabled ? "var(--oh-muted)" : "white"}
-      />
+      {isAgentRunning ? (
+        <Square
+          className="w-3 h-3 text-red-500 fill-red-500"
+        />
+      ) : (
+        <ArrowUp
+          className="w-4 h-4"
+          color={disabled ? "var(--oh-muted)" : "white"}
+        />
+      )}
     </button>
   );
 }

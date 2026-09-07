@@ -41,6 +41,7 @@ import { useLlmConfigured } from "#/hooks/use-llm-configured";
 import { Messages } from "#/components/conversation-events/chat/messages";
 import { PendingUserMessages } from "./pending-user-messages";
 import { useUnifiedUploadFiles } from "#/hooks/mutation/use-unified-upload-files";
+import { useUnifiedPauseConversation } from "#/hooks/mutation/use-unified-stop-conversation";
 import { validateFiles } from "#/utils/file-validation";
 import { useConversationStore } from "#/stores/conversation-store";
 import ConfirmationModeEnabled from "./confirmation-mode-enabled";
@@ -174,6 +175,10 @@ export function ChatInterface() {
     (state) => state.pendingMessages,
   );
   const { t } = useTranslation("openhands");
+  const chatContainerRef = React.useRef<HTMLDivElement>(null);
+  const [shouldAbortContext, setShouldAbortContext] = React.useState(false);
+  const pauseConversationMutation = useUnifiedPauseConversation();
+  
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const {
     scrollDomToBottom,
@@ -253,6 +258,14 @@ export function ChatInterface() {
     handleBuildPlanClick,
     scrollDomToBottom,
   ]);
+
+  const handleStopAndAbortContext = React.useCallback(() => {
+    if (conversationId && isAgentRunning) {
+      pauseConversationMutation.mutate({ conversationId });
+    }
+    setShouldAbortContext(true);
+  }, [conversationId, pauseConversationMutation, isAgentRunning]);
+
 
   const { selectedRepository, replayJson } = useInitialQueryStore();
 
@@ -410,56 +423,11 @@ export function ChatInterface() {
       ),
     [allConversationEvents, eventsBelongToChat],
   );
-  const [, bumpSticky] = React.useState(0);
-  React.useEffect(() => {
-    if (!conversationId || !eventsBelongToChat) {
-      return;
-    }
-    // Persist only current-turn live edits, or the idle completed snapshot.
-    // Do not rewrite sticky from "latest completed" while a new turn is live
-    // with zero edits yet — that kept resurfacing the previous request.
-    if (turnChangeSummaries.live) {
-      turnChangeStickyByConversation.set(
-        conversationId,
-        turnChangeSummaries.live,
-      );
-      writeStickyStore(turnChangeStickyByConversation);
-      bumpSticky((value) => value + 1);
-      return;
-    }
-    if (!isAgentActivelyRunning && latestCompletedChangeSummary) {
-      turnChangeStickyByConversation.set(
-        conversationId,
-        latestCompletedChangeSummary,
-      );
-      writeStickyStore(turnChangeStickyByConversation);
-      bumpSticky((value) => value + 1);
-      return;
-    }
-    if (!isAgentActivelyRunning && !hasFileEditEvents) {
-      if (turnChangeStickyByConversation.delete(conversationId)) {
-        writeStickyStore(turnChangeStickyByConversation);
-        bumpSticky((value) => value + 1);
-      }
-    }
-  }, [
-    conversationId,
-    eventsBelongToChat,
-    hasFileEditEvents,
-    isAgentActivelyRunning,
-    latestCompletedChangeSummary,
-    turnChangeSummaries.live,
-  ]);
-  const stickyTurnChangeSummary =
-    conversationId && eventsBelongToChat
-      ? (turnChangeStickyByConversation.get(conversationId) ?? null)
-      : null;
+
   // Live "Modificando" chip: only edits from the open turn — never sticky.
   const liveTurnChangeSummary = turnChangeSummaries.live;
   const finalTurnChangeSummary = eventsBelongToChat
-    ? (turnChangeSummaries.live ??
-      latestCompletedChangeSummary ??
-      (hasFileEditEvents ? stickyTurnChangeSummary : null))
+    ? turnChangeSummaries.live
     : null;
 
   const hasModelEntries = useModelStore((s) =>
@@ -637,6 +605,11 @@ export function ChatInterface() {
     }
     if (uploadedFiles.length > 0) {
       finalPrompt += `\n\n${filePrompt}`;
+    }
+
+    if (shouldAbortContext) {
+      finalPrompt = `<details>\n<summary>Contexto limpiado</summary>\nNota del sistema: El usuario abortó la tarea anterior. Olvida el contexto previo y atiende esta nueva solicitud desde cero.\n</details>\n\n` + finalPrompt;
+      setShouldAbortContext(false);
     }
 
     // Enqueue the message into the local pending queue with status "sending"
@@ -843,6 +816,7 @@ export function ChatInterface() {
               <Messages
                 messages={renderableEvents}
                 allEvents={allConversationEvents}
+                completedTurnChanges={turnChangeSummaries.completed}
               />
             )}
 
@@ -961,6 +935,9 @@ export function ChatInterface() {
                   onSubmit={handleSendMessage}
                   disabled={isNewConversationPending || llmBlocked}
                   hasStartedConversation={hasStartedConversation}
+                  isAgentRunning={isAgentRunning}
+                  onStop={handleStopAndAbortContext}
+                  shouldAbortContext={shouldAbortContext}
                 />
               </div>
             )}

@@ -12,6 +12,7 @@ interface UseFileHandlingReturn {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   chatContainerRef: React.RefObject<HTMLDivElement | null>;
   isDragOver: boolean;
+  isProcessingFiles: boolean;
   handleFileIconClick: (isDisabled: boolean) => void;
   handleFileInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleDragOver: (e: React.DragEvent, isDisabled: boolean) => void;
@@ -28,6 +29,7 @@ export const useFileHandling = (
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isProcessingFiles, setIsProcessingFiles] = useState(false);
   const { conversationId } = useParams();
 
   const addFiles = useCallback(
@@ -112,6 +114,7 @@ export const useFileHandling = (
           const node = JSON.parse(remoteFolderData);
           const { connectedHost } = useRemoteSshStore.getState();
           if (connectedHost) {
+            setIsProcessingFiles(true);
             // Trigger mutagen sync to mount in the current workspace (or tmp if on landing page)
             const targetConversationId = conversationId || undefined;
             const targetDirName = targetConversationId ? node.name : undefined;
@@ -124,11 +127,14 @@ export const useFileHandling = (
                 fakeFile.folderPath = mountPath;
                 addFiles([fakeFile]);
               }
+            }).finally(() => {
+              setIsProcessingFiles(false);
             });
             return;
           }
         } catch (err) {
           console.error("Failed to parse remote folder drop", err);
+          setIsProcessingFiles(false);
         }
       }
 
@@ -170,6 +176,7 @@ export const useFileHandling = (
     fileInputRef,
     chatContainerRef,
     isDragOver,
+    isProcessingFiles,
     handleFileIconClick,
     handleFileInputChange,
     handleDragOver,

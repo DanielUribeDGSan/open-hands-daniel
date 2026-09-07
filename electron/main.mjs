@@ -605,6 +605,49 @@ ipcMain.handle("desktop:show-open-directory", async (event, options = {}) => {
   return result.filePaths ?? [];
 });
 
+ipcMain.handle("desktop:open-ssh-config", async (event) => {
+  if (!mainWin || mainWin.isDestroyed() || event.sender !== mainWin.webContents) {
+    return false;
+  }
+  try {
+    const fs = await import("node:fs");
+    const os = await import("node:os");
+    const { join } = await import("node:path");
+    const sshDir = join(os.homedir(), ".ssh");
+    const configPath = join(sshDir, "config");
+    
+    if (!fs.existsSync(sshDir)) {
+      fs.mkdirSync(sshDir, { mode: 0o700, recursive: true });
+    }
+    if (!fs.existsSync(configPath)) {
+      fs.writeFileSync(configPath, "# Add your SSH hosts here:\n# Host myserver\n#   HostName 192.168.1.1\n#   User ubuntu\n#   IdentityFile ~/.ssh/id_rsa\n", { mode: 0o600 });
+    }
+    
+    let openSuccess = false;
+    if (process.platform === "darwin") {
+      const { execSync } = await import("node:child_process");
+      try {
+        execSync(`open -t "${configPath}"`);
+        openSuccess = true;
+      } catch (e) {
+        console.error("Failed to open with TextEdit:", e);
+      }
+    }
+    
+    if (!openSuccess) {
+      const error = await shell.openPath(configPath);
+      if (error) {
+        console.error("Failed to open ssh config:", error);
+        return false;
+      }
+    }
+    return true;
+  } catch (err) {
+    console.error("Error opening ssh config:", err);
+    return false;
+  }
+});
+
 ipcMain.handle("desktop:get-ssh-hosts", async (event) => {
   if (!mainWin || mainWin.isDestroyed() || event.sender !== mainWin.webContents) {
     return [];
@@ -805,6 +848,20 @@ expect {
             }
           }
           
+          // Save active SSH context for MCP server
+          try {
+            const sshContextPath = join(os.homedir(), ".openhands", 'openhands_active_ssh.json');
+            fs.writeFileSync(sshContextPath, JSON.stringify({
+              host: connectConfig.host,
+              user: connectConfig.username,
+              port: connectConfig.port,
+              socketPath: host.password ? join(os.tmpdir(), `openhands_ssh_${host.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}.sock`) : undefined,
+              identityFile: host.identityFile ? host.identityFile.replace(/^~/, os.homedir()) : undefined
+            }));
+          } catch (e) {
+            console.error("Failed to save SSH context for MCP:", e);
+          }
+
           resolve({ success: true });
         });
       }).on('error', (err) => {
@@ -832,6 +889,17 @@ ipcMain.handle("desktop:disconnect-ssh", async () => {
     activeControlMasterSocket = null;
     activeControlMasterUserHost = null;
   }
+  
+  try {
+    const fs = await import("node:fs");
+    const os = await import("node:os");
+    const { join } = await import("node:path");
+    const sshContextPath = join(os.homedir(), ".openhands", 'openhands_active_ssh.json');
+    if (fs.existsSync(sshContextPath)) {
+      fs.unlinkSync(sshContextPath);
+    }
+  } catch (e) {}
+
   return { success: true };
 });
 
@@ -859,6 +927,26 @@ ipcMain.handle("desktop:list-remote-files", async (event, remotePath) => {
         return a.name.localeCompare(b.name);
       });
       resolve(entries);
+    });
+  });
+});
+
+ipcMain.handle("desktop:read-remote-file", async (event, remotePath) => {
+  if (!sftpSession) throw new Error("Not connected to SSH");
+  return new Promise((resolve, reject) => {
+    sftpSession.readFile(remotePath, 'utf8', (err, data) => {
+      if (err) return reject(err);
+      resolve(data);
+    });
+  });
+});
+
+ipcMain.handle("desktop:save-remote-file", async (event, remotePath, content) => {
+  if (!sftpSession) throw new Error("Not connected to SSH");
+  return new Promise((resolve, reject) => {
+    sftpSession.writeFile(remotePath, content, 'utf8', (err) => {
+      if (err) return reject(err);
+      resolve(true);
     });
   });
 });
@@ -994,6 +1082,45 @@ async function startStack() {
   }
 }
 
+// ── MCP Auto-Registration ─────────────────────────────────────────────────────
+
+async function ensureSshMcpServer() {
+  try {
+    const fs = await import("node:fs");
+    const os = await import("node:os");
+    const { join } = await import("node:path");
+    
+    const settingsPath = join(os.homedir(), ".openhands", "settings.json");
+    if (!fs.existsSync(settingsPath)) return;
+    
+    const settings = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
+    if (!settings.agent_settings) settings.agent_settings = {};
+    if (!settings.agent_settings.mcp_config) settings.agent_settings.mcp_config = {};
+    
+    // The backend expects Dict[str, MCPServerConfig], not wrapped in mcpServers.
+    // If the frontend wrapped it in mcpServers (which it shouldn't in the saved JSON),
+    // we handle both just in case, but write it directly.
+    if (settings.agent_settings.mcp_config.mcpServers) {
+      settings.agent_settings.mcp_config.mcpServers["ssh-executor"] = {
+        type: "stdio",
+        command: "node",
+        args: [join(__dirname, "ssh-mcp-server.mjs")]
+      };
+    } else {
+      settings.agent_settings.mcp_config["ssh-executor"] = {
+        type: "stdio",
+        command: "node",
+        args: [join(__dirname, "ssh-mcp-server.mjs")]
+      };
+    }
+    
+    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), "utf-8");
+    console.log("[desktop] Injected ssh-executor MCP server into settings.json");
+  } catch (err) {
+    console.error("[desktop] Failed to register ssh-executor MCP server:", err);
+  }
+}
+
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 
 app.whenReady().then(async () => {
@@ -1021,6 +1148,8 @@ app.whenReady().then(async () => {
     app.quit();
     return;
   }
+  
+  // await ensureSshMcpServer();
 
   createLoadingWindow();
 

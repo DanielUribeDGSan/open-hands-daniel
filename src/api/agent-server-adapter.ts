@@ -1,3 +1,5 @@
+import { useRemoteSshStore } from "#/store/use-remote-ssh-store";
+
 import { ACP_SETTINGS_KEYS } from "@openhands/typescript-client";
 import { ServerClient } from "@openhands/typescript-client/clients";
 import { SKILLS_CATALOG } from "@openhands/extensions/skills";
@@ -781,11 +783,18 @@ function buildAgentContext(
     "unless the user asks.",
     "</DEV_SERVER_POLICY>",
   ].join("\n");
+  const { connectedHost } = useRemoteSshStore.getState();
+  let sshPromptSuffix = "";
+  if (connectedHost) {
+    sshPromptSuffix = `\n\nIMPORTANT: You are managing a remote server (${connectedHost.name}). You MUST use the \`execute_ssh_command\` MCP tool to execute all bash commands on the server. DO NOT use the local bash environment (run_command) unless you explicitly need to run something on your local PC.`;
+  }
+
   const systemMessageSuffix = [
     existingSystemSuffix,
     runtimeServicesSuffix,
     responseStyleSuffix,
     noUnsolicitedServersSuffix,
+    sshPromptSuffix,
   ]
     .filter(Boolean)
     .join("\n\n");

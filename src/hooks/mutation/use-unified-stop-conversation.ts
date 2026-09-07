@@ -64,10 +64,6 @@ export const useUnifiedPauseConversation = () => {
         execution_status: ExecutionStatus.PAUSED,
         sandbox_status: "PAUSED",
       });
-
-      if (currentConversationId === variables.conversationId) {
-        navigate("/conversations");
-      }
     },
   });
 };

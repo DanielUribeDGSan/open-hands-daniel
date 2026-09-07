@@ -25,6 +25,9 @@ export interface CustomChatInputProps {
   ) => void;
   className?: React.HTMLAttributes<HTMLDivElement>["className"];
   buttonClassName?: React.HTMLAttributes<HTMLButtonElement>["className"];
+  isAgentRunning?: boolean;
+  onStop?: () => void;
+  shouldAbortContext?: boolean;
 }
 
 export function CustomChatInput({
@@ -32,6 +35,9 @@ export function CustomChatInput({
   isNewConversationPending = false,
   hasStartedConversation,
   showButton = true,
+  isAgentRunning = false,
+  onStop = () => {},
+  shouldAbortContext = false,
   onSubmit,
   onFocus,
   onBlur,
@@ -96,6 +102,7 @@ export function CustomChatInput({
     fileInputRef,
     chatContainerRef,
     isDragOver,
+    isProcessingFiles,
     handleFileIconClick,
     handleFileInputChange,
     handleDragOver,
@@ -186,6 +193,7 @@ export function CustomChatInput({
         <ChatInputContainer
           chatContainerRef={chatContainerRef}
           isDragOver={isDragOver}
+          isProcessingFiles={isProcessingFiles}
           disabled={isDisabled}
           canSubmit={canSubmit}
           hasStartedConversation={hasStartedConversation}
@@ -193,6 +201,9 @@ export function CustomChatInput({
           showButton={showButton}
           buttonClassName={buttonClassName}
           chatInputRef={chatInputRef}
+          isAgentRunning={isAgentRunning}
+          onStop={onStop}
+          shouldAbortContext={shouldAbortContext}
           handleFileIconClick={handleFileIconClick}
           handleSubmit={handleSubmitAndSync}
           onDragOver={handleDragOver}
