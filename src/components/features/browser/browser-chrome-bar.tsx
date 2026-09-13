@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { I18nKey } from "#/i18n/declaration";
 import { cn } from "#/utils/utils";
 import { useSendMessage } from "#/hooks/use-send-message";
+import { useBrowserStore } from "#/stores/browser-store";
 
 type BrowserChromeBarProps = {
   url: string;
@@ -21,6 +22,7 @@ export function BrowserChromeBar({ url, hasPage }: BrowserChromeBarProps) {
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && inputValue) {
+      useBrowserStore.getState().setUrl(inputValue);
       void send({
         action: "message",
         args: { content: `Abre esta página en el navegador: ${inputValue}` },
