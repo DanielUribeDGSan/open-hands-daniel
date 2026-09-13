@@ -21,17 +21,29 @@ export const AGENT_CANVAS_UPDATE_COMMANDS = {
 export async function fetchLatestAgentCanvasVersion(
   signal?: AbortSignal,
 ): Promise<string> {
-  const response = await fetch(NPM_LATEST_VERSION_URL, {
-    signal,
-    headers: { Accept: "application/json" },
-  });
-  if (!response.ok) {
-    throw new Error(`npm registry responded ${response.status}`);
+  const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
+  const supabaseKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  if (supabaseUrl && supabaseKey) {
+    const response = await fetch(`${supabaseUrl}/rest/v1/app_updates?app_id=eq.pair-bot&select=latest_version`, {
+      signal,
+      headers: {
+        "apikey": supabaseKey,
+        "Authorization": `Bearer ${supabaseKey}`,
+        "Accept": "application/json"
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`Supabase responded ${response.status}`);
+    }
+    const data = await response.json();
+    if (Array.isArray(data) && data.length > 0 && data[0].latest_version) {
+      return data[0].latest_version;
+    }
   }
-  const body: unknown = await response.json();
-  const version = (body as { version?: unknown } | null)?.version;
-  if (typeof version !== "string" || !version.trim()) {
-    throw new Error("npm registry response missing version");
-  }
-  return version.trim();
+
+  // If Supabase is not configured or no record found, just return the current version
+  // so no fake "update available" alert is shown from npm.
+  const { AGENT_CANVAS_CLIENT_VERSION } = await import("./client-source");
+  return AGENT_CANVAS_CLIENT_VERSION;
 }

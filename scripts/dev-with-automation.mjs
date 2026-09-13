@@ -339,7 +339,7 @@ function buildAutomationCommand(env = process.env) {
     const gitUrl = `git+${repoUrl}@${gitRef}`;
     uvxArgs.push(
       "--refresh",
-      "--from",
+      "--with",
       gitUrl,
       "uvicorn",
       "openhands.automation.app:app",
@@ -348,7 +348,7 @@ function buildAutomationCommand(env = process.env) {
   } else if (version) {
     // Use specific PyPI version
     uvxArgs.push(
-      "--from",
+      "--with",
       `${DEFAULT_AUTOMATION_PACKAGE}==${version}`,
       "uvicorn",
       "openhands.automation.app:app",
@@ -357,7 +357,7 @@ function buildAutomationCommand(env = process.env) {
   } else {
     // Default to released PyPI version
     uvxArgs.push(
-      "--from",
+      "--with",
       `${DEFAULT_AUTOMATION_PACKAGE}==${DEFAULT_AUTOMATION_VERSION}`,
       "uvicorn",
       "openhands.automation.app:app",

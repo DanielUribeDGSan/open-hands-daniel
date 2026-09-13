@@ -113,8 +113,13 @@ export function UserAssistantEventMessage({
       ]
     : undefined;
 
-  const displayMessage =
+  let displayMessage =
     event.source === "agent" ? removeDecorativeEmoji(message) : message;
+
+  const abortPrefix = "<details>\n<summary>Contexto limpiado</summary>\nNota del sistema: El usuario abortó la tarea anterior. Olvida el contexto previo y atiende esta nueva solicitud desde cero.\n</details>\n\n";
+  if (event.source === "user" && displayMessage.startsWith(abortPrefix)) {
+    displayMessage = displayMessage.substring(abortPrefix.length);
+  }
 
   return (
     <>

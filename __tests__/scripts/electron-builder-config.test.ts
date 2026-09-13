@@ -7,7 +7,16 @@
 // These tests therefore build a fake bundle under os.tmpdir() and verify
 // resolution with a real `node --eval` from that location.
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readlinkSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -15,7 +24,7 @@ import config from "../../electron-builder.config.mjs";
 
 const afterPack = config.afterPack as (ctx: unknown) => Promise<void>;
 
-const PRODUCT_FILENAME = "OpenHands Agent Canvas";
+const PRODUCT_FILENAME = "Pair Bot";
 
 function makeContext(platform: string, appOutDir: string) {
   return {
@@ -40,7 +49,11 @@ function appDirFor(platform: string, appOutDir: string) {
 function resolveRuntimeImports(appDir: string) {
   return spawnSync(
     process.execPath,
-    ["--input-type=module", "-e", 'await import("sirv"); await import("httpxy");'],
+    [
+      "--input-type=module",
+      "-e",
+      'await import("sirv"); await import("httpxy");',
+    ],
     { cwd: appDir, stdio: "pipe" },
   );
 }
@@ -66,6 +79,13 @@ describe("electron-builder afterPack hook", () => {
     expect(existsSync(junkPkg)).toBe(false);
     const result = resolveRuntimeImports(appDir);
     expect(result.status, String(result.stderr)).toBe(0);
+
+    const semverBin = join(
+      appDir,
+      "node_modules/electron-updater/node_modules/.bin/semver",
+    );
+    expect(lstatSync(semverBin).isSymbolicLink()).toBe(true);
+    expect(readlinkSync(semverBin)).toBe("../semver/bin/semver.js");
   });
 
   it("restores the runtime closure even when no node_modules was bundled", async () => {
@@ -92,8 +112,12 @@ describe("electron-builder afterPack hook", () => {
     await afterPack(makeContext("linux", tmp));
 
     expect(existsSync(junkPkg)).toBe(false);
-    expect(existsSync(join(appDir, "node_modules", "sirv", "package.json"))).toBe(true);
-    expect(existsSync(join(appDir, "node_modules", "httpxy", "package.json"))).toBe(true);
+    expect(
+      existsSync(join(appDir, "node_modules", "sirv", "package.json")),
+    ).toBe(true);
+    expect(
+      existsSync(join(appDir, "node_modules", "httpxy", "package.json")),
+    ).toBe(true);
   });
 });
 
@@ -109,7 +133,10 @@ describe("electron-builder afterPack hook", () => {
 describe("desktop app name", () => {
   it("keeps electron/package.json productName in sync with the builder config", () => {
     const appManifest = JSON.parse(
-      readFileSync(join(import.meta.dirname, "../../electron/package.json"), "utf8"),
+      readFileSync(
+        join(import.meta.dirname, "../../electron/package.json"),
+        "utf8",
+      ),
     );
 
     expect(appManifest.productName).toBe(config.productName);

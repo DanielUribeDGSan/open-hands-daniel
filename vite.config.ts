@@ -118,6 +118,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     base,
+    envPrefix: ["VITE_", "PUBLIC_"],
     define: {
       // Empty string for library builds so consumers aren't bound to this
       // machine's node_modules path; agent-server-adapter falls back to

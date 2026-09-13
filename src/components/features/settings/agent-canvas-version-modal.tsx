@@ -177,50 +177,16 @@ export function AgentCanvasVersionModal({
         </div>
 
         {updateAvailable ? (
-          <div>
-            <div className="flex justify-center">
-              {UPDATE_COMMAND_TABS.map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setSelectedTab(tab)}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 px-3 pb-2 text-sm font-medium",
-                    selectedTab === tab
-                      ? "border-b border-white text-white"
-                      : "text-[var(--oh-muted)] hover:text-white",
-                  )}
-                >
-                  <UpdateCommandTabIcon tab={tab} />
-                  {t(getUpdateCommandTabLabelKey(tab))}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-3 rounded-lg border border-[var(--oh-border)] bg-[var(--oh-surface-deep)] px-4 py-3">
-              <code className="min-w-0 flex-1 overflow-visible whitespace-nowrap font-mono text-sm text-white">
-                {command}
-              </code>
-              <button
-                type="button"
-                onClick={copyCommand}
-                aria-label={t(
-                  copied
-                    ? I18nKey.BUTTON$COPIED
-                    : I18nKey.SETTINGS$VERSION_COPY_COMMAND,
-                )}
-                disabled={copied}
-                className="shrink-0 text-[var(--oh-muted)] hover:text-white disabled:hover:text-[var(--oh-muted)]"
-              >
-                {copied ? (
-                  <Check
-                    className="size-4 text-[var(--oh-status-success)]"
-                    aria-hidden
-                  />
-                ) : (
-                  <Copy className="size-4" aria-hidden />
-                )}
-              </button>
-            </div>
+          <div className="mt-2 flex justify-center">
+            <a
+              href="https://task-goblin.com/pair-bot"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#3B82F6] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-600"
+            >
+              Descargar / Actualizar
+              <ExternalLink className="size-5 shrink-0" aria-hidden />
+            </a>
           </div>
         ) : null}
 

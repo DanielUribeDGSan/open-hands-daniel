@@ -61,6 +61,38 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
+const repoRoot = dirname(fileURLToPath(import.meta.url));
+
+// Load only the Apple variables electron-builder understands. Keep the legacy
+// names for existing local setups, mapping them to the current names below.
+try {
+  const envContent = readFileSync(join(repoRoot, ".env"), "utf8");
+  for (const line of envContent.split("\n")) {
+    const match = line.match(/^([A-Z][A-Z0-9_]*)=(.*)$/);
+    if (!match || !match[1].startsWith("APPLE")) continue;
+    if (!process.env[match[1]]) process.env[match[1]] = match[2].trim();
+  }
+} catch {
+  // Ignore if .env doesn't exist
+}
+
+process.env.APPLE_ID ||= process.env.APPLEID;
+process.env.APPLE_APP_SPECIFIC_PASSWORD ||= process.env.APPLEIDPASS;
+
+const hasAppleIdNotarization = Boolean(
+  process.env.APPLE_ID &&
+  process.env.APPLE_APP_SPECIFIC_PASSWORD &&
+  process.env.APPLE_TEAM_ID,
+);
+const hasAppleApiNotarization = Boolean(
+  process.env.APPLE_API_KEY &&
+  process.env.APPLE_API_KEY_ID &&
+  process.env.APPLE_API_ISSUER,
+);
+const hasKeychainNotarization = Boolean(process.env.APPLE_KEYCHAIN_PROFILE);
+const shouldNotarize =
+  hasAppleIdNotarization || hasAppleApiNotarization || hasKeychainNotarization;
+
 // npm packages the packaged app's child-process scripts import at runtime:
 //   scripts/static-server.mjs  → sirv
 //   scripts/proxy-utils.mjs    → httpxy   (imported by ingress.mjs)
@@ -69,9 +101,7 @@ import { fileURLToPath } from "node:url";
 // the package here — a missing one crashes that service in the installed
 // app with ERR_MODULE_NOT_FOUND (invisible under Finder, where stdout goes
 // to /dev/null) and the splash times out waiting for port 8000.
-const RUNTIME_PACKAGES = ["sirv", "httpxy", "ssh2"];
-
-const repoRoot = dirname(fileURLToPath(import.meta.url));
+const RUNTIME_PACKAGES = ["sirv", "httpxy", "ssh2", "electron-updater"];
 
 // Root package.json is the single source of truth for the app version
 // (release-please bumps it). electron/package.json is a minimal manifest
@@ -174,7 +204,10 @@ async function restoreRuntimeNodeModules(appDir) {
   let totalBytes = 0;
   for (const [name, srcDir] of packages) {
     const destDir = join(appDir, "node_modules", ...name.split("/"));
-    await cp(srcDir, destDir, { recursive: true });
+    // Keep package-manager symlinks relative. Node's fs.cp otherwise resolves
+    // them to absolute paths on the build host, which macOS rejects while
+    // signing with "invalid destination for symbolic link in bundle".
+    await cp(srcDir, destDir, { recursive: true, verbatimSymlinks: true });
     totalBytes += getDirSizeBytes(destDir);
   }
 
@@ -378,9 +411,25 @@ const config = {
   mac: {
     category: "public.app-category.developer-tools",
     icon: "build-resources/icon.png",
+    identity: "4F6513CA4588A3353C3768F3A5269EAB81E88C9A",
+    hardenedRuntime: true,
+    gatekeeperAssess: false,
+    entitlements: "electron/build-resources/entitlements.mac.plist",
+    entitlementsInherit: "electron/build-resources/entitlements.mac.plist",
+    // electron-builder throws when the host happens to expose only one or two
+    // APPLE_* variables. A local release should still be signed and packaged;
+    // notarization is enabled only for a complete supported credential set.
+    notarize: shouldNotarize,
     target: [
       {
         target: "dmg",
+        arch: [
+          process.env.ELECTRON_ARCH ??
+            (process.arch === "arm64" ? "arm64" : "x64"),
+        ],
+      },
+      {
+        target: "zip",
         arch: [
           process.env.ELECTRON_ARCH ??
             (process.arch === "arm64" ? "arm64" : "x64"),
@@ -390,6 +439,13 @@ const config = {
     // electron-builder will natively convert icon.png to a valid .icns file
     // during the build using macOS's built-in iconutil.
   },
+
+  publish: [
+    {
+      provider: "generic",
+      url: "https://task-goblin.com/downloads/pair-bot",
+    },
+  ],
 
   dmg: {
     title: "Pair Bot",

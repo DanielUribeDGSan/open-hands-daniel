@@ -35,8 +35,8 @@ const outDir = join(projectRoot, "resources", "bin");
 
 // ── Platform detection ─────────────────────────────────────────────────────────
 
-const PLATFORM = process.platform; // 'darwin' | 'linux' | 'win32'
-const ARCH = process.arch;         // 'x64' | 'arm64'
+const PLATFORM = process.env.TARGET_PLATFORM || process.platform; // 'darwin' | 'linux' | 'win32'
+const ARCH = process.env.TARGET_ARCH || process.arch;         // 'x64' | 'arm64'
 
 function getPlatformSpec() {
   if (PLATFORM === "darwin") {
@@ -183,7 +183,7 @@ async function main() {
       // copyFileSync works across filesystems (unlike renameSync with EXDEV)
       copyFileSync(src, dest);
 
-      if (process.platform !== "win32") {
+      if (PLATFORM !== "win32") {
         chmodSync(dest, 0o755);
       }
 

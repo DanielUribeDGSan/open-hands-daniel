@@ -71,8 +71,8 @@ const NODE_BUNDLE_VERSION = "22.12.0";
 
 // ── Platform detection ───────────────────────────────────────────────────────
 
-const PLATFORM = process.platform; // 'darwin' | 'linux' | 'win32'
-const ARCH = process.arch; // 'x64' | 'arm64' | 'ia32'
+const PLATFORM = process.env.TARGET_PLATFORM || process.platform; // 'darwin' | 'linux' | 'win32'
+const ARCH = process.env.TARGET_ARCH || process.arch; // 'x64' | 'arm64' | 'ia32'
 
 /**
  * Map (platform, arch) → Node's published distribution name.
@@ -152,7 +152,7 @@ function extract(archivePath, targetDir, ext) {
 }
 
 function ensureExecutable(p) {
-  if (process.platform === "win32") return;
+  if (PLATFORM === "win32") return;
   try {
     chmodSync(p, 0o755);
   } catch {}

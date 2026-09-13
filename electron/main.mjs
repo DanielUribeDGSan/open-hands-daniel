@@ -47,6 +47,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
 import { Client } from "ssh2";
+import pkg from "electron-updater";
+const { autoUpdater } = pkg;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -1137,6 +1139,26 @@ app.whenReady().then(async () => {
 
   injectBundledUv();
   injectBundledNode();
+
+  // ── Auto Updater Setup ──
+  if (app.isPackaged) {
+    autoUpdater.checkForUpdatesAndNotify();
+
+    autoUpdater.on("update-downloaded", (info) => {
+      dialog
+        .showMessageBox({
+          type: "info",
+          title: "Actualización disponible",
+          message: "Una nueva versión de Pair Bot ha sido descargada. Reinicia la aplicación para aplicarla.",
+          buttons: ["Reiniciar", "Más tarde"],
+        })
+        .then((result) => {
+          if (result.response === 0) {
+            autoUpdater.quitAndInstall();
+          }
+        });
+    });
+  }
 
   if (!uvxAvailable()) {
     dialog.showErrorBox(
